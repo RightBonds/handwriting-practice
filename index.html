@@ -362,7 +362,7 @@
           <span class="sublabel">to trace</span>
         </div>
         <div>
-          <input type="number" id="blanks" min="0" max="8" step="1" value="2">
+          <input type="number" id="blanks" min="0" max="8" step="1" value="1">
           <span class="sublabel">blank</span>
         </div>
       </div>
@@ -435,24 +435,24 @@
     canvas.font = S + 'px ' + fontCss;
     var m = {
       x:    canvas.measureText('x').actualBoundingBoxAscent / S,
-      asc:  canvas.measureText('bdfhklt').actualBoundingBoxAscent / S,
+      asc:  Math.max(canvas.measureText('bdfhklt').actualBoundingBoxAscent,
+                     canvas.measureText('ABDEHKLT').actualBoundingBoxAscent) / S,
       desc: canvas.measureText('gjpqy').actualBoundingBoxDescent / S,
       width: function(s){ canvas.font = S + 'px ' + fontCss; return canvas.measureText(s).width / S; }
     };
     if (!m.x || !isFinite(m.x)) m.x = 0.5;      // fallback if the browser withholds metrics
-    if (!m.asc || !isFinite(m.asc)) m.asc = 0.72;
+    if (!m.asc || !isFinite(m.asc)) m.asc = 0.72;   // ratio to em, tallest of ascenders/capitals
     if (!m.desc || !isFinite(m.desc)) m.desc = 0.22;
     metricCache[fontCss] = m;
     return m;
   }
 
-  /* Size the text so lowercase x-height exactly fills the blue band (one unit),
-     then pull it back if ascenders would break the top red line or descenders
-     the bottom one. */
+  /* Size the text so tall letters (ascenders and capitals) exactly touch the top
+     red line: their zone is two units, from the top rule down to the baseline.
+     Pull back only if descenders would then break the bottom red line. */
   function fitFontSize(m, u){
-    var size = u / m.x;
-    if (m.asc * size > 2 * u) size = (2 * u) / m.asc;
-    if (m.desc * size > u)    size = u / m.desc;
+    var size = (2 * u) / m.asc;
+    if (m.desc * size > u) size = u / m.desc;
     return size;
   }
 
