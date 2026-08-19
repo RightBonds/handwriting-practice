@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four-Line Handwriting Practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Edu+SA+Beginner:wght@400..700&family=Edu+VIC+WA+NT+Beginner:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#e0473e;
+    --blue:#34aadc;
+    --lw-red:0.30mm;
+    --lw-blue:0.22mm;
+    --side:6mm;          /* horizontal bleed of the ruling */
+    --rule-x:26mm;       /* vertical red margin rule, from sheet left */
+    --top-pad:12mm;      /* sheet top to the red double line */
+    --bottom-pad:10mm;
+    --ink:#1b3a63;       /* colour of the model text */
+    --trace:#aab6c8;     /* light grey for letters to be traced over */
+    --zoom:1;
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    background:#eceff3;
+    color:#1d2530;
+    display:flex;
+    min-height:100vh;
+  }
+
+  /* ---------------- control panel ---------------- */
+
+  .panel{
+    flex:0 0 auto;
+    width:310px;
+    background:#fff;
+    border-right:1px solid #d8dee7;
+    overflow-x:hidden;
+    overflow-y:auto;
+    height:100vh;
+    position:sticky;
+    top:0;
+    transition:width .32s cubic-bezier(.4,0,.2,1),
+               border-right-width .32s cubic-bezier(.4,0,.2,1);
+  }
+  /* fixed width so the fields don't reflow while the panel slides shut */
+  .panelinner{
+    width:310px;
+    padding:20px 20px 40px;
+    transition:opacity .2s ease .06s, visibility 0s;
+  }
+  .panelhead{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:2px;
+  }
+  .panel h1{
+    font-size:17px;
+    margin:0;
+    letter-spacing:-.01em;
+  }
+  .iconbtn{
+    flex:0 0 auto;
+    width:28px;
+    height:28px;
+    padding:0;
+    border:1px solid #ccd4de;
+    border-radius:7px;
+    background:#fff;
+    color:#5a6472;
+    font:inherit;
+    font-size:12px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .iconbtn:hover{background:#f2f5f9;color:#1d2530}
+
+  .opener{
+    position:fixed;
+    top:14px;
+    left:14px;
+    z-index:5;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    font:inherit;
+    font-size:13px;
+    font-weight:600;
+    padding:8px 13px;
+    border:1px solid #ccd4de;
+    border-radius:8px;
+    background:#fff;
+    color:#39424f;
+    cursor:pointer;
+    box-shadow:0 1px 5px rgba(22,34,51,.14);
+    opacity:0;
+    visibility:hidden;
+    transform:translateX(-10px);
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
+  }
+  body.collapsed .opener{
+    opacity:1;
+    visibility:visible;
+    transform:none;
+    pointer-events:auto;
+    transition:opacity .22s ease .14s, transform .22s ease .14s, visibility 0s;
+  }
+  .opener:hover{background:#f2f5f9}
+
+  body.collapsed .panel{
+    width:0;
+    border-right-width:0;
+  }
+  body.collapsed .panelinner{
+    opacity:0;
+    visibility:hidden;                       /* also drops it out of the tab order */
+    transition:opacity .16s ease, visibility 0s linear .32s;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .panel,.panelinner,.opener{transition:none !important}
+  }
+  .panel .sub{
+    font-size:12.5px;
+    color:#6b7684;
+    margin:0 0 20px;
+    line-height:1.45;
+  }
+  .field{margin-bottom:16px}
+  .field > label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:#5a6472;
+    margin-bottom:6px;
+  }
+  textarea,select,input[type=text],input[type=number]{
+    width:100%;
+    font:inherit;
+    font-size:14px;
+    padding:8px 10px;
+    border:1px solid #ccd4de;
+    border-radius:7px;
+    background:#fff;
+    color:inherit;
+  }
+  textarea{min-height:150px;resize:vertical;line-height:1.6}
+  textarea:focus,select:focus,input:focus{outline:2px solid #7ab6e8;outline-offset:-1px;border-color:#7ab6e8}
+  .row{display:flex;gap:10px}
+  .row > *{flex:1;min-width:0}
+  .hint{font-size:11.5px;color:#7b8592;margin-top:5px;line-height:1.45}
+  .sublabel{display:block;font-size:11.5px;color:#7b8592;margin-top:4px;text-align:center}
+
+  .seg{display:flex;border:1px solid #ccd4de;border-radius:7px;overflow:hidden}
+  .seg label{
+    flex:1;
+    text-align:center;
+    font-size:13px;
+    padding:7px 4px;
+    cursor:pointer;
+    background:#fff;
+    border-left:1px solid #e2e7ee;
+  }
+  .seg label:first-child{border-left:0}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg input:checked + span{color:#fff}
+  .seg label:has(input:checked){background:#3a7bd5;color:#fff}
+
+  .check{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#39424f;cursor:pointer}
+  .check input{width:16px;height:16px;accent-color:#3a7bd5}
+
+  button.print{
+    width:100%;
+    padding:11px;
+    font:inherit;
+    font-size:14px;
+    font-weight:600;
+    color:#fff;
+    background:#3a7bd5;
+    border:0;
+    border-radius:7px;
+    cursor:pointer;
+  }
+  button.print:hover{background:#2f68b8}
+  .count{font-size:12px;color:#6b7684;text-align:center;margin-top:9px}
+
+  /* ---------------- sheets ---------------- */
+
+  .stage{
+    flex:1;
+    padding:26px 20px 60px;
+    overflow-x:auto;
+  }
+  .sheets{
+    zoom:var(--zoom);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:22px;
+  }
+
+  .sheet{
+    position:relative;
+    width:210mm;
+    height:297mm;
+    background:#fff;
+    overflow:hidden;
+    box-shadow:0 2px 14px rgba(22,34,51,.16);
+    print-color-adjust:exact;
+    -webkit-print-color-adjust:exact;
+  }
+
+  /* vertical red margin rule */
+  .vrule{
+    position:absolute;
+    top:0; bottom:0;
+    left:var(--rule-x);
+    width:var(--lw-red);
+    background:var(--red);
+  }
+
+  .body{
+    position:absolute;
+    left:var(--side); right:var(--side);
+    top:var(--top-pad);
+    bottom:var(--bottom-pad);
+    padding-top:4mm;
+  }
+
+  .hdr{
+    height:var(--hdr-h);
+    padding-left:calc(var(--rule-x) - var(--side) + 3mm);
+    font-size:3.6mm;
+    color:#41526b;
+  }
+  .hdr .fields{
+    display:flex;
+    align-items:baseline;
+  }
+  .hdr .fields .right{margin-left:auto}
+  .hdr .blank{
+    border-bottom:0.25mm solid #9aa7b8;
+    display:inline-block;
+    min-width:32mm;
+  }
+
+  /* one four-line group */
+  .group{
+    position:relative;
+    height:var(--gh);
+    background-repeat:no-repeat;
+    background-image:
+      linear-gradient(var(--red),var(--red)),
+      linear-gradient(var(--blue),var(--blue)),
+      linear-gradient(var(--blue),var(--blue)),
+      linear-gradient(var(--red),var(--red));
+    background-size:
+      100% var(--lw-red),
+      100% var(--lw-blue),
+      100% var(--lw-blue),
+      100% var(--lw-red);
+    background-position:
+      0 0,
+      0 var(--u),
+      0 calc(2*var(--u)),
+      0 calc(3*var(--u) - var(--lw-red));
+  }
+  .group svg{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+
+  /* ---------------- print ---------------- */
+
+  @page{size:A4 portrait;margin:0}
+
+  @media print{
+    body{background:#fff;display:block}
+    .opener,.iconbtn{display:none !important}
+    .panel,.stage{padding:0}
+    .panel{display:none}
+    .stage{overflow:visible}
+    .sheets{zoom:1;gap:0;display:block}
+    .sheet{
+      box-shadow:none;
+      margin:0;
+      break-after:page;
+      page-break-after:always;
+    }
+    .sheet:last-child{break-after:auto;page-break-after:auto}
+  }
+</style>
+</head>
+<body>
+
+<button type="button" class="opener" id="showBtn" aria-controls="panel">
+  <span aria-hidden="true">&#9776;</span> Settings
+</button>
+
+<aside class="panel" id="panel">
+  <div class="panelinner">
+    <div class="panelhead">
+      <h1>Four-Line Practice Sheet</h1>
+      <button type="button" class="iconbtn" id="hideBtn" aria-controls="panel"
+              aria-expanded="true" title="Hide settings">
+        <span aria-hidden="true">&#10094;</span>
+      </button>
+    </div>
+    <p class="sub">Type what you want your kid to copy, one line per row. Each line is printed once, with blank ruled lines below it to write on.</p>
+
+    <div class="field">
+      <label for="txt">Text</label>
+      <textarea id="txt" spellcheck="false">Aa Bb Cc Dd Ee
+  apple
+  ball
+  cat
+  I can write my name.</textarea>
+      <p class="hint">Blank rows give an empty group. Long lines wrap onto the next line at the same size.</p>
+    </div>
+
+    <div class="field">
+      <label for="font">Letter style</label>
+      <select id="font">
+        <option value="print">School print (upright)</option>
+        <option value="cursive">Beginner cursive (joined)</option>
+        <option value="book">Book letters (plain)</option>
+      </select>
+      <p class="hint" id="fontHint"></p>
+    </div>
+
+    <div class="field">
+      <label>Ruling size</label>
+      <div class="seg" id="size">
+        <label><input type="radio" name="size" value="small"><span>Small</span></label>
+        <label><input type="radio" name="size" value="medium" checked><span>Medium</span></label>
+        <label><input type="radio" name="size" value="large"><span>Large</span></label>
+      </div>
+      <p class="hint" id="sizeHint"></p>
+    </div>
+
+    <div class="field">
+      <label>Lines after each</label>
+      <div class="row">
+        <div>
+          <input type="number" id="traces" min="0" max="8" step="1" value="0">
+          <span class="sublabel">to trace</span>
+        </div>
+        <div>
+          <input type="number" id="blanks" min="0" max="8" step="1" value="2">
+          <span class="sublabel">blank</span>
+        </div>
+      </div>
+      <p class="hint">Trace lines repeat your text in light grey to write over. Blank lines are left empty to fill in.</p>
+    </div>
+
+    <div class="field">
+      <label class="check"><input type="checkbox" id="nameline" checked> Show Name &amp; Date line</label>
+    </div>
+
+    <button class="print" type="button" id="printBtn">Print / Save as PDF</button>
+    <p class="count" id="count"></p>
+  </div>
+</aside>
+
+<main class="stage">
+  <div class="sheets" id="sheets"></div>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---- geometry, all in millimetres ---- */
+  var PAGE_W = 210, PAGE_H = 297;
+  var SIDE = 6, RULE_X = 26, TOP_PAD = 12, BOTTOM_PAD = 10;
+  var LINE_W = PAGE_W - 2 * SIDE;              // width of the ruled area
+  var TEXT_X = RULE_X - SIDE + 3;              // text starts just right of the margin rule
+  var TEXT_RIGHT_PAD = 4;
+  var NAMELINE_H = 7;
+  var BODY_GAP = 4;                            // clearance above the first ruled group
+  var GAP_RATIO = 1.75;                        // blank gap between groups, in units of u
+
+  var SIZES = { small: 4, medium: 5, large: 6.5 };
+
+  /* Ratios matter more than looks here. Four-line ruling assumes tall letters are
+     twice the x-height and descenders a full unit deep. Measured asc:x:desc:
+     Edu SA 1.86:1:0.86, Edu VIC 1.84:1:0.85, Andika 1.59:1:0.48. The Edu faces
+     are drawn for school ruled paper, so they fill the zones properly. */
+  var FONTS = {
+    print:   { css: '"Edu SA Beginner", "Comic Sans MS", "Chalkboard SE", sans-serif' },
+    cursive: { css: '"Edu VIC WA NT Beginner", "Snell Roundhand", "Bradley Hand", cursive' },
+    book:    { css: '"Andika", "Chalkboard SE", "Comic Sans MS", sans-serif' }
+  };
+
+  var el = {
+    txt:      document.getElementById('txt'),
+    font:     document.getElementById('font'),
+    fontHint: document.getElementById('fontHint'),
+    size:     document.getElementById('size'),
+    blanks:   document.getElementById('blanks'),
+    traces:   document.getElementById('traces'),
+    nameline: document.getElementById('nameline'),
+    sheets:   document.getElementById('sheets'),
+    count:    document.getElementById('count'),
+    sizeHint: document.getElementById('sizeHint'),
+    printBtn: document.getElementById('printBtn'),
+    hideBtn:  document.getElementById('hideBtn'),
+    showBtn:  document.getElementById('showBtn')
+  };
+
+  /* ---- font metrics, measured rather than guessed ---- */
+
+  var canvas = document.createElement('canvas').getContext('2d');
+  var metricCache = {};
+
+  function metrics(fontCss){
+    if (metricCache[fontCss]) return metricCache[fontCss];
+    var S = 200;
+    canvas.font = S + 'px ' + fontCss;
+    var m = {
+      x:    canvas.measureText('x').actualBoundingBoxAscent / S,
+      asc:  canvas.measureText('bdfhklt').actualBoundingBoxAscent / S,
+      desc: canvas.measureText('gjpqy').actualBoundingBoxDescent / S,
+      width: function(s){ canvas.font = S + 'px ' + fontCss; return canvas.measureText(s).width / S; }
+    };
+    if (!m.x || !isFinite(m.x)) m.x = 0.5;      // fallback if the browser withholds metrics
+    if (!m.asc || !isFinite(m.asc)) m.asc = 0.72;
+    if (!m.desc || !isFinite(m.desc)) m.desc = 0.22;
+    metricCache[fontCss] = m;
+    return m;
+  }
+
+  /* Size the text so lowercase x-height exactly fills the blue band (one unit),
+     then pull it back if ascenders would break the top red line or descenders
+     the bottom one. */
+  function fitFontSize(m, u){
+    var size = u / m.x;
+    if (m.asc * size > 2 * u) size = (2 * u) / m.asc;
+    if (m.desc * size > u)    size = u / m.desc;
+    return size;
+  }
+
+  function wrap(text, m, fontSize, maxW){
+    var words = text.split(/\s+/).filter(Boolean);
+    if (!words.length) return [text];
+    var out = [], cur = '';
+    for (var i = 0; i < words.length; i++){
+      var t = cur ? cur + ' ' + words[i] : words[i];
+      if (!cur || fontSize * m.width(t) <= maxW) cur = t;
+      else { out.push(cur); cur = words[i]; }
+    }
+    out.push(cur);
+    return out;
+  }
+
+  /* ---- building the sheets ---- */
+
+  function svgNS(tag){ return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+
+  function makeGroup(row, geo, fontCss, fontSize){
+    fontSize = row.size || fontSize;
+    var g = document.createElement('div');
+    g.className = 'group';
+    if (!row.text) return g;
+
+    var svg = svgNS('svg');
+    svg.setAttribute('viewBox', '0 0 ' + LINE_W + ' ' + geo.gh);
+    svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
+
+    var t = svgNS('text');
+    t.setAttribute('x', TEXT_X);
+    t.setAttribute('y', 2 * geo.u);            // baseline sits on the lower blue line
+    t.setAttribute('font-size', fontSize);
+    t.setAttribute('font-family', fontCss);
+    t.style.fill = row.trace ? 'var(--trace)' : 'var(--ink)';
+    t.setAttribute('xml:space', 'preserve');
+    t.textContent = row.text;
+    svg.appendChild(t);
+    g.appendChild(svg);
+    return g;
+  }
+
+  function makeSheet(rows, geo, fontCss, fontSize, opts){
+    var sheet = document.createElement('div');
+    sheet.className = 'sheet';
+
+    var vr  = document.createElement('div'); vr.className  = 'vrule';
+    var body = document.createElement('div'); body.className = 'body';
+    body.style.setProperty('--u', geo.u + 'mm');
+    body.style.setProperty('--gh', geo.gh + 'mm');
+
+    if (opts.header){
+      var h = document.createElement('div');
+      h.className = 'hdr';
+      h.style.setProperty('--hdr-h', headerHeight(opts) + 'mm');
+      if (opts.nameline){
+        var f = document.createElement('div');
+        f.className = 'fields';
+        var n = document.createElement('span');
+        n.innerHTML = 'Name: <span class="blank"></span>';
+        var d = document.createElement('span');
+        d.className = 'right';
+        d.innerHTML = 'Date: <span class="blank" style="min-width:24mm"></span>';
+        f.appendChild(n); f.appendChild(d);
+        h.appendChild(f);
+      }
+      body.appendChild(h);
+    }
+
+    for (var i = 0; i < rows.length; i++){
+      body.appendChild(makeGroup(rows[i], geo, fontCss, fontSize));
+    }
+
+    sheet.appendChild(vr);
+    sheet.appendChild(body);
+    return sheet;
+  }
+
+  function headerHeight(opts){
+    return opts.header ? NAMELINE_H + 2 : 0;
+  }
+
+  function capacity(geo, headerMm){
+    var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD - (headerMm || 0);
+    // the final group needs only its four lines, not the trailing gap
+    var n = Math.floor((avail - 3 * geo.u) / geo.pitch) + 1;
+    return Math.max(1, n);
+  }
+
+  function render(){
+    var u = SIZES[document.querySelector('input[name=size]:checked').value];
+    var geo = { u: u, gap: u * GAP_RATIO, pitch: u * (3 + GAP_RATIO), gh: u * (3 + GAP_RATIO) };
+    var fontCss = FONTS[el.font.value].css;
+    var m = metrics(fontCss);
+    var fontSize = fitFontSize(m, u);
+    var maxW = LINE_W - TEXT_X - TEXT_RIGHT_PAD;
+
+    var blanks = Math.max(0, Math.min(8, parseInt(el.blanks.value, 10) || 0));
+    var traces = Math.max(0, Math.min(8, parseInt(el.traces.value, 10) || 0));
+    var opts = { nameline: el.nameline.checked };
+    opts.header = opts.nameline;
+
+    /* input lines -> blocks of rows */
+    var blocks = [];
+    var lines = el.txt.value.split('\n');
+    for (var i = 0; i < lines.length; i++){
+      var raw = lines[i].trim();
+      if (!raw){ blocks.push([{ text: '' }]); continue; }
+      var segs = wrap(raw, m, fontSize, maxW);
+      var sized = segs.map(function(seg){
+        // a single word with no break point still has to fit the page
+        var w = fontSize * m.width(seg);
+        return { text: seg, size: w > maxW ? fontSize * (maxW / w) : fontSize };
+      });
+      var rows = sized.slice();                          // the dark model line(s)
+      for (var t = 0; t < traces; t++){                  // light grey, to trace over
+        for (var k = 0; k < sized.length; k++){
+          rows.push({ text: sized[k].text, size: sized[k].size, trace: true });
+        }
+      }
+      for (var b = 0; b < blanks; b++) rows.push({ text: '' });
+      blocks.push(rows);
+    }
+    if (!blocks.length) blocks.push([{ text: '' }]);
+
+    /* blocks -> pages, keeping a model line with its practice lines where possible */
+    var hdrMm = headerHeight(opts);
+    var pages = [], cur = [], cap = capacity(geo, hdrMm);
+    for (var j = 0; j < blocks.length; j++){
+      var blk = blocks[j];
+      if (cur.length && cur.length + blk.length > cap){
+        pages.push(cur); cur = []; cap = capacity(geo, 0);
+      }
+      if (blk.length > cap){
+        var rest = blk.slice();
+        while (rest.length > cap){
+          pages.push(cur.concat(rest.slice(0, cap - cur.length)));
+          rest = rest.slice(cap - cur.length);
+          cur = []; cap = capacity(geo, 0);
+        }
+        cur = rest;
+        continue;
+      }
+      cur = cur.concat(blk);
+    }
+    if (cur.length) pages.push(cur);
+
+    /* Pad each page out to a full sheet. A page that stops halfway looks
+       broken; spare ruled lines at the bottom are just extra room to write. */
+    for (var q = 0; q < pages.length; q++){
+      var full = capacity(geo, q === 0 ? hdrMm : 0);
+      while (pages[q].length < full) pages[q].push({ text: '' });
+    }
+
+    /* draw */
+    el.sheets.textContent = '';
+    for (var p = 0; p < pages.length; p++){
+      el.sheets.appendChild(
+        makeSheet(pages[p], geo, fontCss, fontSize, {
+          header: opts.header && p === 0,
+          nameline: opts.nameline
+        })
+      );
+    }
+
+    el.count.textContent = pages.length + (pages.length === 1 ? ' page' : ' pages');
+    el.sizeHint.textContent =
+      'Blue band ' + u + 'mm · ' + capacity(geo, 0) + ' lines per page';
+
+    var ascGap  = 2 * u - m.asc * fontSize;   // how far tall letters stop short of the top line
+    var descGap = u - m.desc * fontSize;      // how far tails stop short of the bottom line
+    el.fontHint.textContent = (ascGap < 0.9 && descGap < 0.9)
+      ? 'Fills all four zones. Tall letters reach the top line, tails the bottom.'
+      : 'Tall letters stop ' + ascGap.toFixed(1) + 'mm short of the top line, tails ' +
+        descGap.toFixed(1) + 'mm short of the bottom.';
+
+    save();
+    fit();
+  }
+
+  /* ---- scale the preview to the window ---- */
+
+  function fit(){
+    var stage = document.querySelector('.stage');
+    var avail = stage.clientWidth - 40;
+    var sheetPx = el.sheets.querySelector('.sheet');
+    if (!sheetPx) return;
+    document.documentElement.style.setProperty('--zoom', 1);
+    var w = sheetPx.getBoundingClientRect().width;
+    document.documentElement.style.setProperty('--zoom', Math.min(1, avail / w));
+  }
+
+  /* ---- collapsing the settings panel ---- */
+
+  function setCollapsed(v){
+    document.body.classList.toggle('collapsed', v);
+    el.hideBtn.setAttribute('aria-expanded', String(!v));
+    if (!v) el.hideBtn.focus(); else el.showBtn.focus();
+    save();
+    fit();                                   // the sheet gets more room, so rescale
+  }
+
+  /* ---- remember settings ---- */
+
+  var KEY = 'fourline-practice-v1';
+  function save(){
+    try{
+      localStorage.setItem(KEY, JSON.stringify({
+        txt: el.txt.value,
+        font: el.font.value,
+        size: document.querySelector('input[name=size]:checked').value,
+        blanks: el.blanks.value,
+        traces: el.traces.value,
+        nameline: el.nameline.checked,
+        collapsed: document.body.classList.contains('collapsed')
+      }));
+    }catch(e){/* private browsing, settings just won't persist */}
+  }
+  function restore(){
+    try{
+      var s = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (!s) return;
+      if (s.txt != null) el.txt.value = s.txt;
+      if (s.font === 'foundation') s.font = 'print';   // renamed since an earlier version
+      if (s.font === 'andika') s.font = 'book';
+      if (s.font && FONTS[s.font]) el.font.value = s.font;
+      if (s.size){
+        var r = document.querySelector('input[name=size][value="' + s.size + '"]');
+        if (r) r.checked = true;
+      }
+      if (s.blanks != null) el.blanks.value = s.blanks;
+      if (s.traces != null) el.traces.value = s.traces;
+      if (s.nameline != null) el.nameline.checked = s.nameline;
+      if (s.collapsed){
+        document.body.classList.add('collapsed');
+        el.hideBtn.setAttribute('aria-expanded', 'false');
+      }
+    }catch(e){}
+  }
+
+  /* ---- wire up ---- */
+
+  ['input', 'change'].forEach(function(ev){
+    el.txt.addEventListener(ev, render);
+    el.font.addEventListener(ev, render);
+    el.size.addEventListener(ev, render);
+    el.blanks.addEventListener(ev, render);
+    el.traces.addEventListener(ev, render);
+    el.nameline.addEventListener(ev, render);
+  });
+  el.printBtn.addEventListener('click', function(){ window.print(); });
+  el.hideBtn.addEventListener('click', function(){ setCollapsed(true); });
+  el.showBtn.addEventListener('click', function(){ setCollapsed(false); });
+  // the stage only reaches its final width when the slide ends
+  document.getElementById('panel').addEventListener('transitionend', function(e){
+    if (e.propertyName === 'width') fit();
+  });
+  window.addEventListener('resize', fit);
+
+  restore();
+  render();
+
+  /* re-measure once the webfonts have actually arrived */
+  if (document.fonts && document.fonts.ready){
+    var families = ['Edu SA Beginner', 'Edu VIC WA NT Beginner', 'Andika'];
+    Promise.all(families.map(function(f){
+      return document.fonts.load('400 200px "' + f + '"', 'abcdefghijklmnopqrstuvwxyzABC').catch(function(){});
+    })).then(function(){
+      return document.fonts.ready;
+    }).then(function(){
+      metricCache = {};
+      render();
+    });
+  }
+})();
+</script>
+</body>
+</html>
