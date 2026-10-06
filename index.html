@@ -6,7 +6,7 @@
 <title>Four-Line Handwriting Practice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Edu+AU+VIC+WA+NT+Pre:wght@400..700&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+QLD+Beginner:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Edu+TAS+Beginner:wght@400..700&family=Patrick+Hand&family=Schoolbell&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Kalam:wght@400;700&family=Edu+AU+VIC+WA+NT+Pre:wght@400..700&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+QLD+Beginner:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Edu+TAS+Beginner:wght@400..700&family=Patrick+Hand&family=Schoolbell&display=swap" rel="stylesheet">
 <style>
   :root{
     --red:#e0473e;
@@ -246,6 +246,26 @@
       0 calc(2*var(--u)),
       0 calc(3*var(--u) - var(--lw-red));
   }
+  /* ruled: one blue line under each row, a full row's space for tall letters */
+  .sheet.ruled .group:not(.dateline){
+    background-image:linear-gradient(var(--blue),var(--blue)),linear-gradient(var(--blue),var(--blue));
+    background-size:100% var(--lw-blue),100% var(--lw-blue);
+    background-position:0 0,0 calc(2*var(--u));
+  }
+  /* math boxes: square blue cells, one digit each */
+  .sheet.grid .group:not(.dateline){
+    background-repeat:repeat;
+    background-image:
+      linear-gradient(var(--blue) var(--lw-blue),transparent 0),
+      linear-gradient(90deg,var(--blue) var(--lw-blue),transparent 0);
+    background-size:100% calc(2*var(--u)),calc(2*var(--u)) 100%;
+    background-position:0 0,0 0;
+  }
+  .sheet.grid .vrule{display:none}
+  /* closing line under the last row */
+  .sheet.ruled .body::after,.sheet.grid .body::after{
+    content:'';display:block;height:var(--lw-blue);background:var(--blue);
+  }
   .group[data-src], .group[data-date]{cursor:text}
   .group .edit.num{
     right:auto;
@@ -352,6 +372,15 @@
     </div>
 
     <div class="field">
+      <label for="paper">Paper</label>
+      <select id="paper">
+        <option value="fourline" selected>Four-line</option>
+        <option value="ruled">Ruled</option>
+        <option value="grid">Math boxes</option>
+      </select>
+    </div>
+
+    <div class="field">
       <label for="lines">Lines per page</label>
       <select id="lines">
         <option>5</option><option>6</option><option>7</option><option>8</option>
@@ -407,7 +436,8 @@
      for school ruled paper and fill the zones properly (Edu SA measures asc:x:desc
      1.86:1:0.86); the reading and handwriting faces have shorter tails and will
      under-fill. The hint under the field reports the gap for whichever is picked. */
-  var FALLBACK = ', "Comic Sans MS", "Chalkboard SE", sans-serif';
+  // Kalam covers Devanagari, which the Latin school faces lack
+  var FALLBACK = ', "Kalam", "Comic Sans MS", "Chalkboard SE", sans-serif';
   var FONTS = {
     sa:         { css: '"Edu SA Beginner"' + FALLBACK },
     nsw:        { css: '"Edu NSW ACT Foundation"' + FALLBACK },
@@ -426,6 +456,7 @@
     font:     document.getElementById('font'),
     fontHint: document.getElementById('fontHint'),
     lines:    document.getElementById('lines'),
+    paper:    document.getElementById('paper'),
     blanks:   document.getElementById('blanks'),
     traces:   document.getElementById('traces'),
     sheets:   document.getElementById('sheets'),
@@ -450,11 +481,13 @@
       asc:  Math.max(canvas.measureText('bdfhklt').actualBoundingBoxAscent,
                      canvas.measureText('ABDEHKLT').actualBoundingBoxAscent) / S,
       desc: canvas.measureText('gjpqy').actualBoundingBoxDescent / S,
+      deva: canvas.measureText('\u0915\u092E\u0932').actualBoundingBoxAscent / S,   // Hindi headline (कमल)
       width: function(s){ canvas.font = S + 'px ' + fontCss; return canvas.measureText(s).width / S; }
     };
     if (!m.x || !isFinite(m.x)) m.x = 0.5;      // fallback if the browser withholds metrics
     if (!m.asc || !isFinite(m.asc)) m.asc = 0.72;   // ratio to em, tallest of ascenders/capitals
     if (!m.desc || !isFinite(m.desc)) m.desc = 0.22;
+    if (!m.deva || !isFinite(m.deva)) m.deva = 0.7;
     metricCache[fontCss] = m;
     return m;
   }
@@ -465,13 +498,15 @@
     return (2 * u) / m.asc;
   }
 
-  function wrap(text, m, fontSize, maxW){
+  var DEVA = /\p{Script=Devanagari}/u;
+
+  function wrap(text, width, maxW){
     var words = text.split(/\s+/).filter(Boolean);
     if (!words.length) return [text];
     var out = [], cur = '';
     for (var i = 0; i < words.length; i++){
       var t = cur ? cur + ' ' + words[i] : words[i];
-      if (!cur || fontSize * m.width(t) <= maxW) cur = t;
+      if (!cur || width(t) <= maxW) cur = t;
       else { out.push(cur); cur = words[i]; }
     }
     out.push(cur);
@@ -505,6 +540,9 @@
       { top: y0,     bot: geo.gh,  s: u / D,       shift: 0 }                     // tails
     ];
     if (row.date) zones = [{ top: 0, bot: geo.gh, s: 1, shift: 0 }];   // no ruling behind it, so no stretch
+    /* Hindi: the headline and stems sit on the top red line, unstretched;
+       matras above it spill into the gap between groups */
+    if (row.deva){ zones = [{ top: -u, bot: geo.gh, s: 1, shift: 0 }]; svg.style.overflow = 'visible'; }
     zones.forEach(function(z){
       var clip = svgNS('svg');                 // a nested svg clips to its own box
       clip.setAttribute('x', 0);
@@ -514,7 +552,7 @@
       clip.setAttribute('viewBox', '0 ' + z.top + ' ' + LINE_W + ' ' + (z.bot - z.top));
       clip.setAttribute('preserveAspectRatio', 'none');
       var t = svgNS('text');
-      t.setAttribute('x', row.date ? DATE_X : TEXT_X);
+      t.setAttribute('x', row.date ? DATE_X : geo.paper === 'grid' ? cellXs(row.text, geo, m, fontSize) : TEXT_X);
       t.setAttribute('y', y0);
       t.setAttribute('font-size', fontSize);
       t.setAttribute('font-family', fontCss);
@@ -543,9 +581,19 @@
     return g;
   }
 
+  /* math boxes: centre each character in its own cell, starting on the first
+     grid column right of where the margin rule would be */
+  function gridX0(geo){ return Math.ceil((RULE_X - SIDE) / (2 * geo.u)) * 2 * geo.u; }
+  function cellXs(text, geo, m, fontSize){
+    var cell = 2 * geo.u, x0 = gridX0(geo);
+    return Array.from(text).map(function(c, i){
+      return x0 + i * cell + (cell - fontSize * m.width(c)) / 2;
+    }).join(' ');
+  }
+
   function makeSheet(rows, geo, fontCss, fontSize, dateRow){
     var sheet = document.createElement('div');
-    sheet.className = 'sheet';
+    sheet.className = 'sheet ' + geo.paper;
 
     var vr  = document.createElement('div'); vr.className  = 'vrule';
     var body = document.createElement('div'); body.className = 'body';
@@ -571,26 +619,33 @@
 
   function capacity(geo){
     var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD;
-    // the final group needs only its four lines, not the trailing gap
-    var n = Math.floor((avail - 3 * geo.u) / geo.pitch + 1e-6) + 1;   // float slack
+    // the final group needs only its own lines, not the trailing gap
+    var n = Math.floor((avail - geo.last) / geo.pitch + 1e-6) + 1;   // float slack
     return Math.max(1, n);
   }
 
-  function geometry(u){
-    return { u: u, gap: u * GAP_RATIO, pitch: u * (3 + GAP_RATIO), gh: u * (3 + GAP_RATIO) };
+  /* Ruled and math boxes put a line every 2u (a row is 4u), so the lines run
+     evenly down the page; four-line keeps its wider gap between groups. */
+  function geometry(u, paper){
+    var four = !paper || paper === 'fourline';
+    var gap = four ? GAP_RATIO : 1;
+    return { u: u, gap: u * gap, pitch: u * (3 + gap), gh: u * (3 + gap),
+             last: u * (four ? 3 : 4), paper: paper || 'fourline' };
   }
 
   function render(){
     /* pick the band so exactly N groups fill the page: the last one needs
        only its own three units, every other one a full pitch */
     var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD;
-    var u = avail / (3 + (+el.lines.value - 1) * (3 + GAP_RATIO));
-    var geo = geometry(u);
+    var unit = geometry(1, el.paper.value);
+    var u = avail / (unit.last + (+el.lines.value - 1) * unit.pitch);
+    var geo = geometry(u, el.paper.value);
+    var grid = geo.paper === 'grid';
     var dateGeo = geometry(u >= 6 ? 5 : 4);   // date and margin numbers stay small enough for the top gap
     var fontCss = (FONTS[el.font.value] || FONTS.sa).css;
     var m = metrics(fontCss);
     var fontSize = fitFontSize(m, u);
-    var maxW = LINE_W - TEXT_X - TEXT_RIGHT_PAD;
+    var maxW = LINE_W - (grid ? gridX0(geo) : TEXT_X) - TEXT_RIGHT_PAD;
 
     var blanks = Math.max(0, Math.min(8, parseInt(el.blanks.value, 10) || 0));
     var traces = Math.max(0, Math.min(8, parseInt(el.traces.value, 10) || 0));
@@ -600,17 +655,22 @@
     for (var i = 0; i < lines.length; i++){
       var parsed = parseLine(lines[i]), raw = parsed.text;
       if (!raw){ blocks.push([{ text: '', src: i, num: parsed.num }]); continue; }
-      var segs = wrap(raw, m, fontSize, maxW);
+      var deva = DEVA.test(raw);
+      var fs = deva ? (2 * u) / m.deva : fontSize;      // Hindi: headline spans baseline to top line
+      var width = grid
+        ? function(s){ return Array.from(s).length * 2 * u; }
+        : function(s){ return fs * m.width(s); };
+      var segs = wrap(raw, width, maxW);
       var sized = segs.map(function(seg){
-        // a single word with no break point still has to fit the page
-        var w = fontSize * m.width(seg);
-        return { text: seg, size: w > maxW ? fontSize * (maxW / w) : fontSize, src: i };
+        // a single word with no break point still has to fit the page (boxes stay put)
+        var w = width(seg);
+        return { text: seg, size: w > maxW && !grid ? fs * (maxW / w) : fs, src: i, deva: deva };
       });
       sized[0].num = parsed.num;                         // the number goes on the first row only
       var rows = sized.slice();                          // the dark model line(s)
       for (var t = 0; t < traces; t++){                  // light grey, to trace over
         for (var k = 0; k < sized.length; k++){
-          rows.push({ text: sized[k].text, size: sized[k].size, trace: true, src: i });
+          rows.push({ text: sized[k].text, size: sized[k].size, deva: deva, trace: true, src: i });
         }
       }
       for (var b = 0; b < blanks; b++) rows.push({ text: '' });
@@ -666,12 +726,12 @@
     fit();
   }
 
-  /* ---- only letters, digits and writing punctuation ---- */
+  /* ---- only letters (Latin, Devanagari), digits, writing punctuation and + − × ÷ = % ---- */
 
-  var BAD = /[^A-Za-z0-9 .,!?'"():;&/\n-]/g;
+  var BAD = /[^A-Za-z0-9\p{Script=Devanagari}\u0964\u0965\u200C .,!?+=%\u00D7\u00F7\u2212'"():;&/\n-]/gu;
   var NUM_BAD = /[^0-9.]/g;                    // margin numbers: digits and dots only
   function cleanText(v, bad){
-    return v.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(bad || BAD, '');
+    return v.replace(/\*/g, '\u00D7').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(bad || BAD, '');
   }
   function clean(field, bad){
     var v = field.value, c = cleanText(v, bad);
@@ -684,14 +744,15 @@
   /* ---- margin numbers: a line starting with digits/dots then a space, e.g.
      "1. apple", shows "1." in the margin. ponytail: so "10 apples" moves too ---- */
 
-  var NUM_RE = /^([0-9.]+)(?:\s+(.*))?$/;
+  var NUM_RE = /^([0-9.]+)(?:\s+(?![-+=%\u00D7\u00F7\u2212])(.*))?$/;   // "12 + 3" is a sum, not line 12
+  // a leading space means the line is all text: " 1+1 = 2" has no serial number
   function parseLine(line){
-    line = line.trim();
-    var r = NUM_RE.exec(line);
-    return r ? { num: r[1], text: r[2] || '' } : { num: '', text: line };
+    var r = /^\s/.test(line) ? null : NUM_RE.exec(line.trim());
+    return r ? { num: r[1], text: r[2] || '' } : { num: '', text: line.trim() };
   }
   function joinLine(num, text){
-    return num ? (text ? num + ' ' + text : num) : text;
+    if (!num) return NUM_RE.test(text) ? ' ' + text : text;   // keep the space that keeps it text
+    return text ? num + ' ' + text : num;
   }
   function numSize(num){                       // one size step down, shrunk to fit the margin
     var w = current.numFont * current.m.width(num || '0');
@@ -800,6 +861,7 @@
       localStorage.setItem(KEY, JSON.stringify({
         txt: el.txt.value,
         font: el.font.value,
+        paper: el.paper.value,
         lines: el.lines.value,
         blanks: el.blanks.value,
         traces: el.traces.value,
@@ -819,6 +881,7 @@
       if (!s) return;
       if (s.txt != null && !reload) el.txt.value = cleanText(s.txt);
       if (s.font && FONTS[s.font]) el.font.value = s.font;
+      if (s.paper && el.paper.querySelector('option[value="' + s.paper + '"]')) el.paper.value = s.paper;
       if (s.lines) el.lines.value = s.lines;
       if (s.blanks != null) el.blanks.value = s.blanks;
       if (s.traces != null) el.traces.value = s.traces;
@@ -837,6 +900,7 @@
     el.txt.addEventListener(ev, render);
     el.lines.addEventListener(ev, render);
     el.font.addEventListener(ev, render);
+    el.paper.addEventListener(ev, render);
     el.blanks.addEventListener(ev, render);
     el.traces.addEventListener(ev, render);
   });
@@ -859,7 +923,7 @@
     });
     Promise.all(families.map(function(f){
       return document.fonts.load('400 200px "' + f + '"', 'abcdefghijklmnopqrstuvwxyzABC').catch(function(){});
-    })).then(function(){
+    }).concat(document.fonts.load('400 200px "Kalam"', '\u0915\u092E\u0932').catch(function(){}))).then(function(){
       return document.fonts.ready;
     }).then(function(){
       metricCache = {};
