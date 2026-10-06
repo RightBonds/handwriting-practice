@@ -6,7 +6,7 @@
 <title>Four-Line Handwriting Practice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Edu+SA+Beginner:wght@400..700&family=Edu+VIC+WA+NT+Beginner:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Edu+AU+VIC+WA+NT+Pre:wght@400..700&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+QLD+Beginner:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Edu+TAS+Beginner:wght@400..700&family=Patrick+Hand&family=Schoolbell&display=swap" rel="stylesheet">
 <style>
   :root{
     --red:#e0473e;
@@ -164,23 +164,7 @@
   .hint{font-size:11.5px;color:#7b8592;margin-top:5px;line-height:1.45}
   .sublabel{display:block;font-size:11.5px;color:#7b8592;margin-top:4px;text-align:center}
 
-  .seg{display:flex;border:1px solid #ccd4de;border-radius:7px;overflow:hidden}
-  .seg label{
-    flex:1;
-    text-align:center;
-    font-size:13px;
-    padding:7px 4px;
-    cursor:pointer;
-    background:#fff;
-    border-left:1px solid #e2e7ee;
-  }
-  .seg label:first-child{border-left:0}
-  .seg input{position:absolute;opacity:0;pointer-events:none}
-  .seg input:checked + span{color:#fff}
-  .seg label:has(input:checked){background:#3a7bd5;color:#fff}
 
-  .check{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#39424f;cursor:pointer}
-  .check input{width:16px;height:16px;accent-color:#3a7bd5}
 
   button.print{
     width:100%;
@@ -240,22 +224,6 @@
     padding-top:4mm;
   }
 
-  .hdr{
-    height:var(--hdr-h);
-    padding-left:calc(var(--rule-x) - var(--side) + 3mm);
-    font-size:3.6mm;
-    color:#41526b;
-  }
-  .hdr .fields{
-    display:flex;
-    align-items:baseline;
-  }
-  .hdr .fields .right{margin-left:auto}
-  .hdr .blank{
-    border-bottom:0.25mm solid #9aa7b8;
-    display:inline-block;
-    min-width:32mm;
-  }
 
   /* one four-line group */
   .group{
@@ -277,6 +245,32 @@
       0 var(--u),
       0 calc(2*var(--u)),
       0 calc(3*var(--u) - var(--lw-red));
+  }
+  .group[data-src], .group[data-date]{cursor:text}
+  .group .edit.num{
+    right:auto;
+    width:calc(var(--rule-x) - var(--side));
+    padding-right:1.5mm;
+    text-align:right;
+  }
+  /* date floats in the white space above the first rule: baseline 1.5mm over it, no ruling */
+  .group.dateline{
+    position:absolute;
+    left:0; right:0;
+    top:calc(4mm - 1.5mm - 2*var(--u));
+    background:none;
+  }
+  .group .edit{
+    position:absolute;
+    left:0; right:0; top:0;
+    height:calc(3*var(--u));
+    box-sizing:border-box;
+    border:0; margin:0;
+    /* invisible box: the svg underneath redraws live, so typing looks like the output */
+    background:none;
+    outline:none;
+    color:transparent;
+    caret-color:var(--ink);
   }
   .group svg{
     position:absolute;
@@ -337,20 +331,33 @@
     <div class="field">
       <label for="font">Letter style</label>
       <select id="font">
-        <option value="print">School print (upright)</option>
-        <option value="cursive">Beginner cursive (joined)</option>
-        <option value="book">Book letters (plain)</option>
+        <optgroup label="School scripts">
+          <option value="sa">School print, SA (upright)</option>
+          <option value="nsw">School print, NSW/ACT</option>
+          <option value="qld">School print, QLD</option>
+          <option value="tas">School print, TAS</option>
+          <option value="pre">Pre-cursive (entry &amp; exit strokes)</option>
+        </optgroup>
+        <optgroup label="Reading faces">
+          <option value="andika">Andika (literacy)</option>
+          <option value="abeezee">ABeeZee (early reader)</option>
+          <option value="comic">Comic Neue (casual)</option>
+        </optgroup>
+        <optgroup label="Handwriting look">
+          <option value="patrick">Patrick Hand</option>
+          <option value="schoolbell">Schoolbell</option>
+        </optgroup>
       </select>
       <p class="hint" id="fontHint"></p>
     </div>
 
     <div class="field">
-      <label>Ruling size</label>
-      <div class="seg" id="size">
-        <label><input type="radio" name="size" value="small"><span>Small</span></label>
-        <label><input type="radio" name="size" value="medium" checked><span>Medium</span></label>
-        <label><input type="radio" name="size" value="large"><span>Large</span></label>
-      </div>
+      <label for="lines">Lines per page</label>
+      <select id="lines">
+        <option>5</option><option>6</option><option>7</option><option>8</option>
+        <option>9</option><option selected>10</option><option>11</option><option>12</option>
+        <option>13</option><option>14</option><option>15</option>
+      </select>
       <p class="hint" id="sizeHint"></p>
     </div>
 
@@ -367,10 +374,6 @@
         </div>
       </div>
       <p class="hint">Trace lines repeat your text in light grey to write over. Blank lines are left empty to fill in.</p>
-    </div>
-
-    <div class="field">
-      <label class="check"><input type="checkbox" id="nameline" checked> Show Name &amp; Date line</label>
     </div>
 
     <button class="print" type="button" id="printBtn">Print / Save as PDF</button>
@@ -392,30 +395,39 @@
   var LINE_W = PAGE_W - 2 * SIDE;              // width of the ruled area
   var TEXT_X = RULE_X - SIDE + 3;              // text starts just right of the margin rule
   var TEXT_RIGHT_PAD = 4;
-  var NAMELINE_H = 7;
+  var NUM_X = RULE_X - SIDE - 1.5;             // margin numbers end just left of the red rule
+  var NUM_W = NUM_X - 1;                       // room for them
+  var DATE_X = 2;                              // the date starts in the margin, left of the red rule
   var BODY_GAP = 4;                            // clearance above the first ruled group
   var GAP_RATIO = 1.75;                        // blank gap between groups, in units of u
 
-  var SIZES = { small: 4, medium: 5, large: 6.5 };
 
   /* Ratios matter more than looks here. Four-line ruling assumes tall letters are
-     twice the x-height and descenders a full unit deep. Measured asc:x:desc:
-     Edu SA 1.86:1:0.86, Edu VIC 1.84:1:0.85, Andika 1.59:1:0.48. The Edu faces
-     are drawn for school ruled paper, so they fill the zones properly. */
+     twice the x-height and descenders a full unit deep. The Edu faces are drawn
+     for school ruled paper and fill the zones properly (Edu SA measures asc:x:desc
+     1.86:1:0.86); the reading and handwriting faces have shorter tails and will
+     under-fill. The hint under the field reports the gap for whichever is picked. */
+  var FALLBACK = ', "Comic Sans MS", "Chalkboard SE", sans-serif';
   var FONTS = {
-    print:   { css: '"Edu SA Beginner", "Comic Sans MS", "Chalkboard SE", sans-serif' },
-    cursive: { css: '"Edu VIC WA NT Beginner", "Snell Roundhand", "Bradley Hand", cursive' },
-    book:    { css: '"Andika", "Chalkboard SE", "Comic Sans MS", sans-serif' }
+    sa:         { css: '"Edu SA Beginner"' + FALLBACK },
+    nsw:        { css: '"Edu NSW ACT Foundation"' + FALLBACK },
+    qld:        { css: '"Edu QLD Beginner"' + FALLBACK },
+    tas:        { css: '"Edu TAS Beginner"' + FALLBACK },
+    pre:        { css: '"Edu AU VIC WA NT Pre"' + FALLBACK },
+    andika:     { css: '"Andika"' + FALLBACK },
+    abeezee:    { css: '"ABeeZee"' + FALLBACK },
+    comic:      { css: '"Comic Neue"' + FALLBACK },
+    patrick:    { css: '"Patrick Hand"' + FALLBACK },
+    schoolbell: { css: '"Schoolbell"' + FALLBACK }
   };
 
   var el = {
     txt:      document.getElementById('txt'),
     font:     document.getElementById('font'),
     fontHint: document.getElementById('fontHint'),
-    size:     document.getElementById('size'),
+    lines:    document.getElementById('lines'),
     blanks:   document.getElementById('blanks'),
     traces:   document.getElementById('traces'),
-    nameline: document.getElementById('nameline'),
     sheets:   document.getElementById('sheets'),
     count:    document.getElementById('count'),
     sizeHint: document.getElementById('sizeHint'),
@@ -447,13 +459,10 @@
     return m;
   }
 
-  /* Size the text so tall letters (ascenders and capitals) exactly touch the top
-     red line: their zone is two units, from the top rule down to the baseline.
-     Pull back only if descenders would then break the bottom red line. */
+  /* Size the text so tall letters (ascenders and capitals) span two units, from
+     the baseline to the top red line. Each zone is then stretched to its rule. */
   function fitFontSize(m, u){
-    var size = (2 * u) / m.asc;
-    if (m.desc * size > u) size = u / m.desc;
-    return size;
+    return (2 * u) / m.asc;
   }
 
   function wrap(text, m, fontSize, maxW){
@@ -477,26 +486,64 @@
     fontSize = row.size || fontSize;
     var g = document.createElement('div');
     g.className = 'group';
-    if (!row.text) return g;
+    if (row.src != null) g.dataset.src = row.src;   // clickable: edits that input line
+    if (row.date) g.dataset.date = '';
+    if (!row.text && row.src == null && !row.date) return g;   // editable rows keep an svg to type into
 
     var svg = svgNS('svg');
     svg.setAttribute('viewBox', '0 0 ' + LINE_W + ' ' + geo.gh);
     svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
 
-    var t = svgNS('text');
-    t.setAttribute('x', TEXT_X);
-    t.setAttribute('y', 2 * geo.u);            // baseline sits on the lower blue line
-    t.setAttribute('font-size', fontSize);
-    t.setAttribute('font-family', fontCss);
-    t.style.fill = row.trace ? 'var(--trace)' : 'var(--ink)';
-    t.setAttribute('xml:space', 'preserve');
-    t.textContent = row.text;
-    svg.appendChild(t);
+    /* Fonts disagree on x-height and tail length, so draw the text three times,
+       each clipped to one zone and stretched vertically to fill it: x-height to
+       the upper blue line, ascenders to the top red line, tails to the bottom one. */
+    var m = metrics(fontCss), u = geo.u, y0 = 2 * u;   // baseline sits on the lower blue line
+    var X = m.x * fontSize, A = m.asc * fontSize, D = m.desc * fontSize;
+    var zones = [
+      { top: 0,      bot: y0 - u,  s: u / (A - X), shift: X * u / (A - X) - u },  // ascenders
+      { top: y0 - u, bot: y0,      s: u / X,       shift: 0 },                    // x-height
+      { top: y0,     bot: geo.gh,  s: u / D,       shift: 0 }                     // tails
+    ];
+    if (row.date) zones = [{ top: 0, bot: geo.gh, s: 1, shift: 0 }];   // no ruling behind it, so no stretch
+    zones.forEach(function(z){
+      var clip = svgNS('svg');                 // a nested svg clips to its own box
+      clip.setAttribute('x', 0);
+      clip.setAttribute('y', z.top);
+      clip.setAttribute('width', LINE_W);
+      clip.setAttribute('height', z.bot - z.top);
+      clip.setAttribute('viewBox', '0 ' + z.top + ' ' + LINE_W + ' ' + (z.bot - z.top));
+      clip.setAttribute('preserveAspectRatio', 'none');
+      var t = svgNS('text');
+      t.setAttribute('x', row.date ? DATE_X : TEXT_X);
+      t.setAttribute('y', y0);
+      t.setAttribute('font-size', fontSize);
+      t.setAttribute('font-family', fontCss);
+      t.setAttribute('transform',
+        'translate(0 ' + (y0 + z.shift) + ') scale(1 ' + z.s + ') translate(0 ' + (-y0) + ')');
+      t.setAttribute('class', 'body');
+      t.style.fill = row.trace ? 'var(--trace)' : 'var(--ink)';
+      t.setAttribute('xml:space', 'preserve');
+      t.textContent = row.text;
+      clip.appendChild(t);
+      svg.appendChild(clip);
+    });
+    if (row.src != null){                      // margin number, plain (no stretch), right-aligned
+      var n = svgNS('text');
+      n.setAttribute('class', 'num');
+      n.setAttribute('x', NUM_X);
+      n.setAttribute('y', y0);
+      n.setAttribute('text-anchor', 'end');
+      n.setAttribute('font-size', numSize(row.num || ''));
+      n.setAttribute('font-family', fontCss);
+      n.style.fill = 'var(--ink)';
+      n.textContent = row.num || '';
+      svg.appendChild(n);
+    }
     g.appendChild(svg);
     return g;
   }
 
-  function makeSheet(rows, geo, fontCss, fontSize, opts){
+  function makeSheet(rows, geo, fontCss, fontSize, dateRow){
     var sheet = document.createElement('div');
     sheet.className = 'sheet';
 
@@ -505,24 +552,14 @@
     body.style.setProperty('--u', geo.u + 'mm');
     body.style.setProperty('--gh', geo.gh + 'mm');
 
-    if (opts.header){
-      var h = document.createElement('div');
-      h.className = 'hdr';
-      h.style.setProperty('--hdr-h', headerHeight(opts) + 'mm');
-      if (opts.nameline){
-        var f = document.createElement('div');
-        f.className = 'fields';
-        var n = document.createElement('span');
-        n.innerHTML = 'Name: <span class="blank"></span>';
-        var d = document.createElement('span');
-        d.className = 'right';
-        d.innerHTML = 'Date: <span class="blank" style="min-width:24mm"></span>';
-        f.appendChild(n); f.appendChild(d);
-        h.appendChild(f);
-      }
-      body.appendChild(h);
-    }
 
+    if (dateRow){
+      var dg = makeGroup(dateRow, dateRow.geo, fontCss, fitFontSize(metrics(fontCss), dateRow.geo.u));
+      dg.classList.add('dateline');
+      dg.style.setProperty('--u', dateRow.geo.u + 'mm');
+      dg.style.setProperty('--gh', dateRow.geo.gh + 'mm');
+      body.appendChild(dg);
+    }
     for (var i = 0; i < rows.length; i++){
       body.appendChild(makeGroup(rows[i], geo, fontCss, fontSize));
     }
@@ -532,67 +569,67 @@
     return sheet;
   }
 
-  function headerHeight(opts){
-    return opts.header ? NAMELINE_H + 2 : 0;
-  }
-
-  function capacity(geo, headerMm){
-    var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD - (headerMm || 0);
+  function capacity(geo){
+    var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD;
     // the final group needs only its four lines, not the trailing gap
-    var n = Math.floor((avail - 3 * geo.u) / geo.pitch) + 1;
+    var n = Math.floor((avail - 3 * geo.u) / geo.pitch + 1e-6) + 1;   // float slack
     return Math.max(1, n);
   }
 
+  function geometry(u){
+    return { u: u, gap: u * GAP_RATIO, pitch: u * (3 + GAP_RATIO), gh: u * (3 + GAP_RATIO) };
+  }
+
   function render(){
-    var u = SIZES[document.querySelector('input[name=size]:checked').value];
-    var geo = { u: u, gap: u * GAP_RATIO, pitch: u * (3 + GAP_RATIO), gh: u * (3 + GAP_RATIO) };
-    var fontCss = FONTS[el.font.value].css;
+    /* pick the band so exactly N groups fill the page: the last one needs
+       only its own three units, every other one a full pitch */
+    var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD;
+    var u = avail / (3 + (+el.lines.value - 1) * (3 + GAP_RATIO));
+    var geo = geometry(u);
+    var dateGeo = geometry(u >= 6 ? 5 : 4);   // date and margin numbers stay small enough for the top gap
+    var fontCss = (FONTS[el.font.value] || FONTS.sa).css;
     var m = metrics(fontCss);
     var fontSize = fitFontSize(m, u);
     var maxW = LINE_W - TEXT_X - TEXT_RIGHT_PAD;
 
     var blanks = Math.max(0, Math.min(8, parseInt(el.blanks.value, 10) || 0));
     var traces = Math.max(0, Math.min(8, parseInt(el.traces.value, 10) || 0));
-    var opts = { nameline: el.nameline.checked };
-    opts.header = opts.nameline;
-
     /* input lines -> blocks of rows */
     var blocks = [];
     var lines = el.txt.value.split('\n');
     for (var i = 0; i < lines.length; i++){
-      var raw = lines[i].trim();
-      if (!raw){ blocks.push([{ text: '' }]); continue; }
+      var parsed = parseLine(lines[i]), raw = parsed.text;
+      if (!raw){ blocks.push([{ text: '', src: i, num: parsed.num }]); continue; }
       var segs = wrap(raw, m, fontSize, maxW);
       var sized = segs.map(function(seg){
         // a single word with no break point still has to fit the page
         var w = fontSize * m.width(seg);
-        return { text: seg, size: w > maxW ? fontSize * (maxW / w) : fontSize };
+        return { text: seg, size: w > maxW ? fontSize * (maxW / w) : fontSize, src: i };
       });
+      sized[0].num = parsed.num;                         // the number goes on the first row only
       var rows = sized.slice();                          // the dark model line(s)
       for (var t = 0; t < traces; t++){                  // light grey, to trace over
         for (var k = 0; k < sized.length; k++){
-          rows.push({ text: sized[k].text, size: sized[k].size, trace: true });
+          rows.push({ text: sized[k].text, size: sized[k].size, trace: true, src: i });
         }
       }
       for (var b = 0; b < blanks; b++) rows.push({ text: '' });
       blocks.push(rows);
     }
-    if (!blocks.length) blocks.push([{ text: '' }]);
 
     /* blocks -> pages, keeping a model line with its practice lines where possible */
-    var hdrMm = headerHeight(opts);
-    var pages = [], cur = [], cap = capacity(geo, hdrMm);
+    var pages = [], cur = [], cap = capacity(geo);
     for (var j = 0; j < blocks.length; j++){
       var blk = blocks[j];
       if (cur.length && cur.length + blk.length > cap){
-        pages.push(cur); cur = []; cap = capacity(geo, 0);
+        pages.push(cur); cur = []; cap = capacity(geo);
       }
       if (blk.length > cap){
         var rest = blk.slice();
         while (rest.length > cap){
           pages.push(cur.concat(rest.slice(0, cap - cur.length)));
           rest = rest.slice(cap - cur.length);
-          cur = []; cap = capacity(geo, 0);
+          cur = []; cap = capacity(geo);
         }
         cur = rest;
         continue;
@@ -604,35 +641,134 @@
     /* Pad each page out to a full sheet. A page that stops halfway looks
        broken; spare ruled lines at the bottom are just extra room to write. */
     for (var q = 0; q < pages.length; q++){
-      var full = capacity(geo, q === 0 ? hdrMm : 0);
-      while (pages[q].length < full) pages[q].push({ text: '' });
+      var full = capacity(geo);
+      while (pages[q].length < full) pages[q].push({ text: '', src: -1 });   // -1: click adds a line
     }
+
+    current = { fontCss: fontCss, fontSize: fontSize, numFont: fitFontSize(m, dateGeo.u), m: m };
 
     /* draw */
     el.sheets.textContent = '';
     for (var p = 0; p < pages.length; p++){
       el.sheets.appendChild(
-        makeSheet(pages[p], geo, fontCss, fontSize, {
-          header: opts.header && p === 0,
-          nameline: opts.nameline
-        })
+        makeSheet(pages[p], geo, fontCss, fontSize,
+          p === 0 ? { text: dateText, date: true, geo: dateGeo } : null)
       );
     }
 
     el.count.textContent = pages.length + (pages.length === 1 ? ' page' : ' pages');
     el.sizeHint.textContent =
-      'Blue band ' + u + 'mm · ' + capacity(geo, 0) + ' lines per page';
+      'Blue band ' + u.toFixed(1) + 'mm';
 
-    var ascGap  = 2 * u - m.asc * fontSize;   // how far tall letters stop short of the top line
-    var descGap = u - m.desc * fontSize;      // how far tails stop short of the bottom line
-    el.fontHint.textContent = (ascGap < 0.9 && descGap < 0.9)
-      ? 'Fills all four zones. Tall letters reach the top line, tails the bottom.'
-      : 'Tall letters stop ' + ascGap.toFixed(1) + 'mm short of the top line, tails ' +
-        descGap.toFixed(1) + 'mm short of the bottom.';
+    el.fontHint.textContent = 'Fills all four zones. Tall letters reach the top line, tails the bottom.';
 
     save();
     fit();
   }
+
+  /* ---- only letters, digits and writing punctuation ---- */
+
+  var BAD = /[^A-Za-z0-9 .,!?'"():;&/\n-]/g;
+  var NUM_BAD = /[^0-9.]/g;                    // margin numbers: digits and dots only
+  function cleanText(v, bad){
+    return v.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(bad || BAD, '');
+  }
+  function clean(field, bad){
+    var v = field.value, c = cleanText(v, bad);
+    if (c === v) return;
+    var pos = cleanText(v.slice(0, field.selectionStart), bad).length;
+    field.value = c;
+    field.setSelectionRange(pos, pos);
+  }
+
+  /* ---- margin numbers: a line starting with digits/dots then a space, e.g.
+     "1. apple", shows "1." in the margin. ponytail: so "10 apples" moves too ---- */
+
+  var NUM_RE = /^([0-9.]+)(?:\s+(.*))?$/;
+  function parseLine(line){
+    line = line.trim();
+    var r = NUM_RE.exec(line);
+    return r ? { num: r[1], text: r[2] || '' } : { num: '', text: line };
+  }
+  function joinLine(num, text){
+    return num ? (text ? num + ' ' + text : num) : text;
+  }
+  function numSize(num){                       // one size step down, shrunk to fit the margin
+    var w = current.numFont * current.m.width(num || '0');
+    return w > NUM_W ? current.numFont * (NUM_W / w) : current.numFont;
+  }
+
+  /* ---- type straight onto the sheet ---- */
+
+  var current = null;
+  var dateText = '';
+
+  function setLine(src, part, value, insertAfter){
+    var lines = el.txt.value.split('\n');
+    var old = src < 0 ? { num: '', text: '' } : parseLine(lines[src] || '');
+    old[part] = value;
+    var line = joinLine(old.num, old.text);
+    if (src < 0){ lines.push(line); src = lines.length - 1; }
+    else lines[src] = line;
+    if (insertAfter) lines.splice(src + 1, 0, '');
+    el.txt.value = lines.join('\n');
+    render();
+    return src;
+  }
+
+  function editRow(g, part){
+    var isDate = 'date' in g.dataset;
+    var isNum = part === 'num';
+    var src = +g.dataset.src;
+    var line = src < 0 ? { num: '', text: '' } : parseLine(el.txt.value.split('\n')[src] || '');
+    var texts = g.querySelectorAll(isNum ? 'text.num' : 'text.body');
+    var input = document.createElement('input');
+    input.className = isNum ? 'edit num' : 'edit';
+    input.spellcheck = false;
+    input.setAttribute('aria-label', isDate ? 'Date' : isNum ? 'Line number' : 'Practice line text');
+    input.value = isDate ? dateText : line[isNum ? 'num' : 'text'];
+    input.style.fontFamily = current.fontCss;
+    input.style.fontSize = (texts[0] ? +texts[0].getAttribute('font-size') : current.fontSize) + 'mm';
+    if (!isNum) input.style.paddingLeft = (isDate ? DATE_X : TEXT_X) + 'mm';
+    function mirror(){
+      texts.forEach(function(t){ t.textContent = input.value; });
+      if (isNum && texts[0]){
+        texts[0].setAttribute('font-size', numSize(input.value));
+        input.style.fontSize = texts[0].getAttribute('font-size') + 'mm';
+      }
+    }
+    mirror();
+    g.appendChild(input);
+    input.focus();
+
+    var done = false;
+    function finish(commit, next){
+      if (done) return;
+      done = true;
+      if (!commit){ render(); return; }
+      if (isDate){ dateText = input.value.trim(); render(); return; }
+      // Enter in the margin moves on to the text of the same line
+      var at = setLine(src, isNum ? 'num' : 'text', input.value.trim(), next && !isNum);
+      if (next){
+        var ng = el.sheets.querySelector('.group[data-src="' + (isNum ? at : at + 1) + '"]');
+        if (ng) editRow(ng);
+      }
+    }
+    input.addEventListener('input', function(){ clean(input, isNum ? NUM_BAD : null); mirror(); });
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); finish(true, true); }
+      else if (e.key === 'Escape') finish(false);
+    });
+    input.addEventListener('blur', function(){ finish(true, false); });
+  }
+
+  el.sheets.addEventListener('click', function(e){
+    var g = e.target.closest('.group[data-src], .group[data-date]');
+    if (!g || g.querySelector('.edit')) return;
+    var r = g.getBoundingClientRect();
+    var mm = (e.clientX - r.left) * LINE_W / r.width;   // click position across the row, in mm
+    editRow(g, !('date' in g.dataset) && mm < RULE_X - SIDE ? 'num' : 'text');
+  });
 
   /* ---- scale the preview to the window ---- */
 
@@ -664,45 +800,45 @@
       localStorage.setItem(KEY, JSON.stringify({
         txt: el.txt.value,
         font: el.font.value,
-        size: document.querySelector('input[name=size]:checked').value,
+        lines: el.lines.value,
         blanks: el.blanks.value,
         traces: el.traces.value,
-        nameline: el.nameline.checked,
+        date: dateText,
         collapsed: document.body.classList.contains('collapsed')
       }));
-    }catch(e){/* private browsing, settings just won't persist */}
+    }catch{/* private browsing, settings just won't persist */}
   }
   function restore(){
+    /* JS can't tell a hard refresh from a normal one, so any reload clears
+       the text and date; a fresh visit still brings them back. */
+    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    var reload = nav && nav.type === 'reload';
+    if (reload) el.txt.value = '';
     try{
       var s = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (!s) return;
-      if (s.txt != null) el.txt.value = s.txt;
-      if (s.font === 'foundation') s.font = 'print';   // renamed since an earlier version
-      if (s.font === 'andika') s.font = 'book';
+      if (s.txt != null && !reload) el.txt.value = cleanText(s.txt);
       if (s.font && FONTS[s.font]) el.font.value = s.font;
-      if (s.size){
-        var r = document.querySelector('input[name=size][value="' + s.size + '"]');
-        if (r) r.checked = true;
-      }
+      if (s.lines) el.lines.value = s.lines;
       if (s.blanks != null) el.blanks.value = s.blanks;
       if (s.traces != null) el.traces.value = s.traces;
-      if (s.nameline != null) el.nameline.checked = s.nameline;
+      if (s.date && !reload) dateText = cleanText(s.date);
       if (s.collapsed){
         document.body.classList.add('collapsed');
         el.hideBtn.setAttribute('aria-expanded', 'false');
       }
-    }catch(e){}
+    }catch{/* bad or missing saved settings, keep defaults */}
   }
 
   /* ---- wire up ---- */
 
+  el.txt.addEventListener('input', function(){ clean(el.txt); });
   ['input', 'change'].forEach(function(ev){
     el.txt.addEventListener(ev, render);
+    el.lines.addEventListener(ev, render);
     el.font.addEventListener(ev, render);
-    el.size.addEventListener(ev, render);
     el.blanks.addEventListener(ev, render);
     el.traces.addEventListener(ev, render);
-    el.nameline.addEventListener(ev, render);
   });
   el.printBtn.addEventListener('click', function(){ window.print(); });
   el.hideBtn.addEventListener('click', function(){ setCollapsed(true); });
@@ -718,7 +854,9 @@
 
   /* re-measure once the webfonts have actually arrived */
   if (document.fonts && document.fonts.ready){
-    var families = ['Edu SA Beginner', 'Edu VIC WA NT Beginner', 'Andika'];
+    var families = Object.keys(FONTS).map(function(k){
+      return FONTS[k].css.split(',')[0].replace(/"/g, '');
+    });
     Promise.all(families.map(function(f){
       return document.fonts.load('400 200px "' + f + '"', 'abcdefghijklmnopqrstuvwxyzABC').catch(function(){});
     })).then(function(){
