@@ -252,18 +252,18 @@
     background-size:100% var(--lw-blue),100% var(--lw-blue);
     background-position:0 0,0 calc(2*var(--u));
   }
-  /* math boxes: square blue cells, one digit each */
-  .sheet.grid .group:not(.dateline){
-    background-repeat:repeat;
+  /* math boxes: square blue cells edge to edge, lined up with the text rows */
+  .sheet.grid{
     background-image:
       linear-gradient(var(--blue) var(--lw-blue),transparent 0),
       linear-gradient(90deg,var(--blue) var(--lw-blue),transparent 0);
-    background-size:100% calc(2*var(--u)),calc(2*var(--u)) 100%;
-    background-position:0 0,0 0;
+    background-size:calc(2*var(--u)) calc(2*var(--u));
+    background-position:var(--side) calc(var(--top-pad) + 4mm);
   }
   .sheet.grid .vrule{display:none}
+  .sheet.grid .group{background:none}
   /* closing line under the last row */
-  .sheet.ruled .body::after,.sheet.grid .body::after{
+  .sheet.ruled .body::after{
     content:'';display:block;height:var(--lw-blue);background:var(--blue);
   }
   .group[data-src], .group[data-date]{cursor:text}
@@ -594,6 +594,7 @@
   function makeSheet(rows, geo, fontCss, fontSize, dateRow){
     var sheet = document.createElement('div');
     sheet.className = 'sheet ' + geo.paper;
+    sheet.style.setProperty('--u', geo.u + 'mm');   // the math grid is drawn on the whole sheet
 
     var vr  = document.createElement('div'); vr.className  = 'vrule';
     var body = document.createElement('div'); body.className = 'body';
