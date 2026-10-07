@@ -6,7 +6,7 @@
 <title>Four-Line Handwriting Practice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Kalam:wght@400;700&family=Edu+AU+VIC+WA+NT+Pre:wght@400..700&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+QLD+Beginner:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Edu+TAS+Beginner:wght@400..700&family=Patrick+Hand&family=Schoolbell&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Kalam:wght@400;700&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Patrick+Hand&family=Playpen+Sans:wght@400;700&family=Schoolbell&display=swap" rel="stylesheet">
 <style>
   :root{
     --red:#e0473e;
@@ -266,6 +266,7 @@
   .sheet.ruled .body::after{
     content:'';display:block;height:var(--lw-blue);background:var(--blue);
   }
+  .sheet text, .group .edit{font-weight:var(--weight, 400);word-spacing:0.15em}   /* keep WORD_SPACE in step */
   .group[data-src], .group[data-date]{cursor:text}
   .group .edit.num{
     right:auto;
@@ -345,7 +346,7 @@
   ball
   cat
   I can write my name.</textarea>
-      <p class="hint">Blank rows give an empty group. Long lines wrap onto the next line at the same size.</p>
+      <p class="hint">Blank rows give an empty group. Long lines wrap onto the next line at the same size. Put _underscores_ around words to underline them.</p>
     </div>
 
     <div class="field">
@@ -354,11 +355,9 @@
         <optgroup label="School scripts">
           <option value="sa">School print, SA (upright)</option>
           <option value="nsw">School print, NSW/ACT</option>
-          <option value="qld">School print, QLD</option>
-          <option value="tas">School print, TAS</option>
-          <option value="pre">Pre-cursive (entry &amp; exit strokes)</option>
         </optgroup>
         <optgroup label="Reading faces">
+          <option value="playpen" selected>Playpen Sans (ages 4 to 6)</option>
           <option value="andika">Andika (literacy)</option>
           <option value="abeezee">ABeeZee (early reader)</option>
           <option value="comic">Comic Neue (casual)</option>
@@ -369,6 +368,14 @@
         </optgroup>
       </select>
       <p class="hint" id="fontHint"></p>
+    </div>
+
+    <div class="field">
+      <label for="weight">Letter weight</label>
+      <select id="weight">
+        <option value="400" selected>Regular</option>
+        <option value="700">Bold</option>
+      </select>
     </div>
 
     <div class="field">
@@ -428,6 +435,8 @@
   var NUM_W = NUM_X - 1;                       // room for them
   var DATE_X = 2;                              // the date starts in the margin, left of the red rule
   var BODY_GAP = 4;                            // clearance above the first ruled group
+  var WORD_SPACE = 0.15;                       // extra gap between words, in em (matches the CSS word-spacing)
+  var TEXT_K = 1 / 1.5;                        // letter scale on every paper: 1.5x the words per line
   var GAP_RATIO = 1.75;                        // blank gap between groups, in units of u
 
 
@@ -441,9 +450,7 @@
   var FONTS = {
     sa:         { css: '"Edu SA Beginner"' + FALLBACK },
     nsw:        { css: '"Edu NSW ACT Foundation"' + FALLBACK },
-    qld:        { css: '"Edu QLD Beginner"' + FALLBACK },
-    tas:        { css: '"Edu TAS Beginner"' + FALLBACK },
-    pre:        { css: '"Edu AU VIC WA NT Pre"' + FALLBACK },
+    playpen:    { css: '"Playpen Sans"' + FALLBACK },
     andika:     { css: '"Andika"' + FALLBACK },
     abeezee:    { css: '"ABeeZee"' + FALLBACK },
     comic:      { css: '"Comic Neue"' + FALLBACK },
@@ -457,6 +464,7 @@
     fontHint: document.getElementById('fontHint'),
     lines:    document.getElementById('lines'),
     paper:    document.getElementById('paper'),
+    weight:   document.getElementById('weight'),
     blanks:   document.getElementById('blanks'),
     traces:   document.getElementById('traces'),
     sheets:   document.getElementById('sheets'),
@@ -473,22 +481,31 @@
   var metricCache = {};
 
   function metrics(fontCss){
-    if (metricCache[fontCss]) return metricCache[fontCss];
+    var key = el.weight.value + ' ' + fontCss;   // bold runs wider, so it wraps sooner
+    if (metricCache[key]) return metricCache[key];
     var S = 200;
-    canvas.font = S + 'px ' + fontCss;
+    canvas.font = key.replace(' ', ' ' + S + 'px ');
     var m = {
       x:    canvas.measureText('x').actualBoundingBoxAscent / S,
       asc:  Math.max(canvas.measureText('bdfhklt').actualBoundingBoxAscent,
                      canvas.measureText('ABDEHKLT').actualBoundingBoxAscent) / S,
       desc: canvas.measureText('gjpqy').actualBoundingBoxDescent / S,
       deva: canvas.measureText('\u0915\u092E\u0932').actualBoundingBoxAscent / S,   // Hindi headline (कमल)
-      width: function(s){ canvas.font = S + 'px ' + fontCss; return canvas.measureText(s).width / S; }
+      ink: function(s){                        // how far a string reaches above and below the baseline
+        canvas.font = key.replace(' ', ' ' + S + 'px ');
+        var t = canvas.measureText(s);
+        return { asc: t.actualBoundingBoxAscent / S, desc: t.actualBoundingBoxDescent / S };
+      },
+      width: function(s){
+        canvas.font = key.replace(' ', ' ' + S + 'px ');
+        return canvas.measureText(s).width / S + WORD_SPACE * (s.split(' ').length - 1);
+      }
     };
     if (!m.x || !isFinite(m.x)) m.x = 0.5;      // fallback if the browser withholds metrics
     if (!m.asc || !isFinite(m.asc)) m.asc = 0.72;   // ratio to em, tallest of ascenders/capitals
     if (!m.desc || !isFinite(m.desc)) m.desc = 0.22;
     if (!m.deva || !isFinite(m.deva)) m.deva = 0.7;
-    metricCache[fontCss] = m;
+    metricCache[key] = m;
     return m;
   }
 
@@ -534,15 +551,24 @@
        the upper blue line, ascenders to the top red line, tails to the bottom one. */
     var m = metrics(fontCss), u = geo.u, y0 = 2 * u;   // baseline sits on the lower blue line
     var X = m.x * fontSize, A = m.asc * fontSize, D = m.desc * fontSize;
+    /* where the tall-letter top, x-height top, baseline and tail bottom land;
+       ruled and math boxes sit letters on the line, tall letters TEXT_K * 1.6u
+       high (so a line holds 1.5x the words), tails hanging just below it.
+       Four-line fills its own (narrower) band instead. */
+    var grid = geo.paper === 'grid' && !row.date;
+    var lined = geo.paper !== 'fourline' && !row.date;
+    var k = TEXT_K * u;
+    var yA = lined ? y0 - 1.6 * k : 0, yX = lined ? y0 - 0.9 * k : y0 - u, yB = y0, yT = lined ? y0 + 0.4 * k : y0 + u;
+    if (grid) svg.style.overflow = 'visible';
     var zones = [
-      { top: 0,      bot: y0 - u,  s: u / (A - X), shift: X * u / (A - X) - u },  // ascenders
-      { top: y0 - u, bot: y0,      s: u / X,       shift: 0 },                    // x-height
-      { top: y0,     bot: geo.gh,  s: u / D,       shift: 0 }                     // tails
+      { top: yA, bot: yX, s: (yX - yA) / (A - X), shift: yX + X * (yX - yA) / (A - X) - y0 },  // ascenders
+      { top: yX, bot: yB, s: (yB - yX) / X,  shift: yB - y0 },                     // x-height
+      { top: yB, bot: yT, s: (yT - yB) / D,  shift: yB - y0 }                      // tails
     ];
     if (row.date) zones = [{ top: 0, bot: geo.gh, s: 1, shift: 0 }];   // no ruling behind it, so no stretch
     /* Hindi: the headline and stems sit on the top red line, unstretched;
        matras above it spill into the gap between groups */
-    if (row.deva){ zones = [{ top: -u, bot: geo.gh, s: 1, shift: 0 }]; svg.style.overflow = 'visible'; }
+    if (row.deva){ zones = [{ top: -u, bot: y0 + 2 * u, s: 1, shift: yB - y0 }]; svg.style.overflow = 'visible'; }
     zones.forEach(function(z){
       var clip = svgNS('svg');                 // a nested svg clips to its own box
       clip.setAttribute('x', 0);
@@ -552,7 +578,7 @@
       clip.setAttribute('viewBox', '0 ' + z.top + ' ' + LINE_W + ' ' + (z.bot - z.top));
       clip.setAttribute('preserveAspectRatio', 'none');
       var t = svgNS('text');
-      t.setAttribute('x', row.date ? DATE_X : geo.paper === 'grid' ? cellXs(row.text, geo, m, fontSize) : TEXT_X);
+      t.setAttribute('x', row.date ? DATE_X : TEXT_X);
       t.setAttribute('y', y0);
       t.setAttribute('font-size', fontSize);
       t.setAttribute('font-family', fontCss);
@@ -561,17 +587,42 @@
       t.setAttribute('class', 'body');
       t.style.fill = row.trace ? 'var(--trace)' : 'var(--ink)';
       t.setAttribute('xml:space', 'preserve');
-      t.textContent = row.text;
+      var spans = row.date ? [{ text: row.text }]
+        : grid ? gridSpans(row.text, u, m, fontSize).spans : chunks(row.text);
+      spans.filter(function(sp){ return !sp.sign; }).forEach(function(sp){
+        var ts = svgNS('tspan');
+        if (sp.x != null) ts.setAttribute('x', sp.x);
+        if (sp.ul) ts.setAttribute('text-decoration', 'underline');
+        ts.textContent = sp.text;
+        t.appendChild(ts);
+      });
       clip.appendChild(t);
       svg.appendChild(clip);
     });
+    if (grid){                                 // math signs: unstretched, centred in their box
+      gridSpans(row.text, u, m, fontSize).spans.filter(function(sp){ return sp.sign; }).forEach(function(sp){
+        var ink = m.ink(sp.text), c = svgNS('text');
+        c.setAttribute('class', 'sign');
+        c.setAttribute('x', sp.x);
+        c.setAttribute('y', y0 - 0.8 * k + fontSize * (ink.asc - ink.desc) / 2);   // level with the digits' middle
+        c.setAttribute('text-anchor', 'middle');
+        c.setAttribute('font-size', fontSize);
+        c.setAttribute('font-family', fontCss);
+        if (sp.ul) c.setAttribute('text-decoration', 'underline');
+        c.style.fill = row.trace ? 'var(--trace)' : 'var(--ink)';
+        c.textContent = sp.text;
+        svg.appendChild(c);
+      });
+    }
     if (row.src != null){                      // margin number, plain (no stretch), right-aligned
       var n = svgNS('text');
       n.setAttribute('class', 'num');
-      n.setAttribute('x', NUM_X);
-      n.setAttribute('y', y0);
-      n.setAttribute('text-anchor', 'end');
-      n.setAttribute('font-size', numSize(row.num || ''));
+      n.setAttribute('x', grid ? u : NUM_X);
+      n.setAttribute('y', yB);
+      n.setAttribute('text-anchor', grid ? 'middle' : 'end');
+      // math boxes: full text size, centred in the first box, shrunk only if it won't fit
+      var nw = fontSize * m.width(row.num || '0');
+      n.setAttribute('font-size', Math.min(fontSize, grid ? fontSize * 1.8 * u / nw : numSize(row.num || '')));   // never bigger than the text
       n.setAttribute('font-family', fontCss);
       n.style.fill = 'var(--ink)';
       n.textContent = row.num || '';
@@ -581,15 +632,68 @@
     return g;
   }
 
-  /* math boxes: centre each character in its own cell, starting on the first
-     grid column right of where the margin rule would be */
-  function gridX0(geo){ return Math.ceil((RULE_X - SIDE) / (2 * geo.u)) * 2 * geo.u; }
-  function cellXs(text, geo, m, fontSize){
-    var cell = 2 * geo.u, x0 = gridX0(geo);
-    return Array.from(text).map(function(c, i){
-      return x0 + i * cell + (cell - fontSize * m.width(c)) / 2;
-    }).join(' ');
+  /* math boxes: each digit is centred in its own cell; words and signs run on
+     as normal text from where the last digit ended. Starts on the first grid
+     column right of where the margin rule would be. */
+  function gridX0(u){ return 2 * u; }   // the first box holds the serial number
+  /* math signs get a box of their own too, centred both ways; "-" and "/"
+     between letters (well-known, and/or) stay part of the word */
+  var SIGN_RE = /[+\-\u2212\u00D7\u00F7=/]/;
+  function gridSpans(text, u, m, fontSize){
+    var cell = 2 * u, x = gridX0(u), spans = [];
+    chunks(text).forEach(function(c){
+      var runs = [];
+      Array.from(c.text.matchAll(/[0-9]|[+\-\u2212\u00D7\u00F7=/]|[^0-9+\-\u2212\u00D7\u00F7=/]+/g)).forEach(function(r){
+        var sign = SIGN_RE.test(r[0]) && !(/\p{L}/u.test(c.text[r.index - 1] || '') && /\p{L}/u.test(c.text[r.index + 1] || ''));
+        var last = runs[runs.length - 1];
+        if (!sign && !/[0-9]/.test(r[0]) && last && last.plain) last.text += r[0];   // glue a word back together
+        else runs.push({ text: r[0], sign: sign, plain: !sign && !/[0-9]/.test(r[0]) });
+      });
+      runs.forEach(function(rn, i){
+        var run = rn.text;
+        // a sign's own box already sets it apart; "13 14" still keeps its gap
+        if (/^\s+$/.test(run) && ((runs[i - 1] || {}).sign || (runs[i + 1] || {}).sign)) return;
+        if (rn.sign){
+          x = Math.ceil(x / cell - 1e-6) * cell;
+          spans.push({ x: x + cell / 2, text: run, ul: c.ul, sign: true });
+          x += cell;
+        } else if (/[0-9]/.test(run)){
+          x = Math.ceil(x / cell - 1e-6) * cell;   // snap to the next box
+          spans.push({ x: x + (cell - fontSize * m.width(run)) / 2, text: run, ul: c.ul });
+          x += cell;
+        } else {
+          spans.push({ x: x, text: run, ul: c.ul });
+          x += fontSize * m.width(run);
+        }
+      });
+    });
+    return { spans: spans, end: x };
   }
+
+  /* _word_ or _a few words_ is underlined; a lone "_" (as in "_ Plan") stays as typed */
+  var UL_RE = /_(\S(?:[^_]*\S)?)_/g;
+  function chunks(text){
+    var out = [], last = 0, r;
+    UL_RE.lastIndex = 0;
+    while ((r = UL_RE.exec(text))){
+      if (r.index > last) out.push({ text: text.slice(last, r.index) });
+      out.push({ text: r[1], ul: true });
+      last = UL_RE.lastIndex;
+    }
+    if (last < text.length) out.push({ text: text.slice(last) });
+    // "_key_ _word_" reads as one underline, spaces included
+    out.forEach(function(c, i){
+      if (!c.ul && /^\s+$/.test(c.text) && out[i - 1] && out[i - 1].ul && out[i + 1] && out[i + 1].ul) c.ul = true;
+    });
+    return out;
+  }
+  // mark each word on its own so an underline survives wrapping onto the next row
+  function ulWords(text){
+    return text.replace(UL_RE, function(all, inner){
+      return inner.split(/(\s+)/).map(function(w){ return !w || /\s/.test(w) ? w : '_' + w + '_'; }).join('');
+    });
+  }
+  function plain(text){ return text.replace(UL_RE, '$1'); }
 
   function makeSheet(rows, geo, fontCss, fontSize, dateRow){
     var sheet = document.createElement('div');
@@ -625,28 +729,35 @@
     return Math.max(1, n);
   }
 
-  /* Ruled and math boxes put a line every 2u (a row is 4u), so the lines run
-     evenly down the page; four-line keeps its wider gap between groups. */
-  function geometry(u, paper){
+  /* Ruled puts a line every 2u (a row is 4u) and math boxes a box row every 2u
+     (a row is 2u), so the lines run evenly down the page; four-line keeps its
+     wider gap between groups. */
+  function geometry(u, paper, pitch){
     var four = !paper || paper === 'fourline';
-    var gap = four ? GAP_RATIO : 1;
+    var gap = four ? GAP_RATIO : paper === 'grid' ? -1 : 1;   // math boxes: one text row per box row
+    if (pitch) gap = pitch / u - 3;              // a narrower band keeping the same row spacing
     return { u: u, gap: u * gap, pitch: u * (3 + gap), gh: u * (3 + gap),
-             last: u * (four ? 3 : 4), paper: paper || 'fourline' };
+             last: u * (four || paper === 'grid' ? 3 : 4), paper: paper || 'fourline' };
   }
 
   function render(){
     /* pick the band so exactly N groups fill the page: the last one needs
        only its own three units, every other one a full pitch */
     var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD;
-    var unit = geometry(1, el.paper.value);
+    // math boxes keep the ruled box size and fit twice the rows
+    var unit = geometry(1, el.paper.value === 'grid' ? 'ruled' : el.paper.value);
     var u = avail / (unit.last + (+el.lines.value - 1) * unit.pitch);
-    var geo = geometry(u, el.paper.value);
+    // four-line: same rows per page, band shrunk so a line holds 1.5x the words
+    var pitch = el.paper.value === 'fourline' ? geometry(u, 'fourline').pitch : 0;
+    if (pitch) u *= TEXT_K;
+    var geo = geometry(u, el.paper.value, pitch);
     var grid = geo.paper === 'grid';
     var dateGeo = geometry(u >= 6 ? 5 : 4);   // date and margin numbers stay small enough for the top gap
-    var fontCss = (FONTS[el.font.value] || FONTS.sa).css;
+    var fontCss = (FONTS[el.font.value] || FONTS.playpen).css;
+    el.sheets.style.setProperty('--weight', el.weight.value);
     var m = metrics(fontCss);
     var fontSize = fitFontSize(m, u);
-    var maxW = LINE_W - (grid ? gridX0(geo) : TEXT_X) - TEXT_RIGHT_PAD;
+    var maxW = LINE_W - (grid ? gridX0(u) : TEXT_X) - TEXT_RIGHT_PAD;
 
     var blanks = Math.max(0, Math.min(8, parseInt(el.blanks.value, 10) || 0));
     var traces = Math.max(0, Math.min(8, parseInt(el.traces.value, 10) || 0));
@@ -658,10 +769,11 @@
       if (!raw){ blocks.push([{ text: '', src: i, num: parsed.num }]); continue; }
       var deva = DEVA.test(raw);
       var fs = deva ? (2 * u) / m.deva : fontSize;      // Hindi: headline spans baseline to top line
+      if (geo.paper !== 'fourline') fs *= 0.8 * TEXT_K;   // ruled, math boxes: smaller letters, same shape
       var width = grid
-        ? function(s){ return Array.from(s).length * 2 * u; }
-        : function(s){ return fs * m.width(s); };
-      var segs = wrap(raw, width, maxW);
+        ? function(s){ return gridSpans(s, u, m, fs).end - gridX0(u); }
+        : function(s){ return fs * m.width(plain(s)); };
+      var segs = wrap(ulWords(raw), width, maxW);
       var sized = segs.map(function(seg){
         // a single word with no break point still has to fit the page (boxes stay put)
         var w = width(seg);
@@ -706,7 +818,7 @@
       while (pages[q].length < full) pages[q].push({ text: '', src: -1 });   // -1: click adds a line
     }
 
-    current = { fontCss: fontCss, fontSize: fontSize, numFont: fitFontSize(m, dateGeo.u), m: m };
+    current = { fontCss: fontCss, fontSize: fontSize, numFont: fitFontSize(m, dateGeo.u), m: m, numW: grid ? 2 * u : RULE_X - SIDE };
 
     /* draw */
     el.sheets.textContent = '';
@@ -729,8 +841,8 @@
 
   /* ---- only letters (Latin, Devanagari), digits, writing punctuation and + − × ÷ = % ---- */
 
-  var BAD = /[^A-Za-z0-9\p{Script=Devanagari}\u0964\u0965\u200C .,!?+=%\u00D7\u00F7\u2212'"():;&/\n-]/gu;
-  var NUM_BAD = /[^0-9.]/g;                    // margin numbers: digits and dots only
+  var BAD = /[^A-Za-z0-9\p{Script=Devanagari}\u0964\u0965\u200C .,!?+=%\u00D7\u00F7\u2212'"():;&/_\n-]/gu;
+  var NUM_BAD = /[^0-9.)]/g;                   // margin numbers: digits, dots and ")" only
   function cleanText(v, bad){
     return v.replace(/\*/g, '\u00D7').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(bad || BAD, '');
   }
@@ -745,7 +857,7 @@
   /* ---- margin numbers: a line starting with digits/dots then a space, e.g.
      "1. apple", shows "1." in the margin. ponytail: so "10 apples" moves too ---- */
 
-  var NUM_RE = /^([0-9.]+)(?:\s+(?![-+=%\u00D7\u00F7\u2212])(.*))?$/;   // "12 + 3" is a sum, not line 12
+  var NUM_RE = /^([0-9.]+\)?)(?:\s+(?![-+=%\u00D7\u00F7\u2212])(.*))?$/;   // "12 + 3" is a sum, not line 12
   // a leading space means the line is all text: " 1+1 = 2" has no serial number
   function parseLine(line){
     var r = /^\s/.test(line) ? null : NUM_RE.exec(line.trim());
@@ -829,7 +941,7 @@
     if (!g || g.querySelector('.edit')) return;
     var r = g.getBoundingClientRect();
     var mm = (e.clientX - r.left) * LINE_W / r.width;   // click position across the row, in mm
-    editRow(g, !('date' in g.dataset) && mm < RULE_X - SIDE ? 'num' : 'text');
+    editRow(g, !('date' in g.dataset) && mm < current.numW ? 'num' : 'text');
   });
 
   /* ---- scale the preview to the window ---- */
@@ -863,6 +975,7 @@
         txt: el.txt.value,
         font: el.font.value,
         paper: el.paper.value,
+        weight: el.weight.value,
         lines: el.lines.value,
         blanks: el.blanks.value,
         traces: el.traces.value,
@@ -872,21 +985,17 @@
     }catch{/* private browsing, settings just won't persist */}
   }
   function restore(){
-    /* JS can't tell a hard refresh from a normal one, so any reload clears
-       the text and date; a fresh visit still brings them back. */
-    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-    var reload = nav && nav.type === 'reload';
-    if (reload) el.txt.value = '';
     try{
       var s = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (!s) return;
-      if (s.txt != null && !reload) el.txt.value = cleanText(s.txt);
+      if (s.txt != null) el.txt.value = cleanText(s.txt);
       if (s.font && FONTS[s.font]) el.font.value = s.font;
       if (s.paper && el.paper.querySelector('option[value="' + s.paper + '"]')) el.paper.value = s.paper;
+      if (s.weight === '700') el.weight.value = '700';
       if (s.lines) el.lines.value = s.lines;
       if (s.blanks != null) el.blanks.value = s.blanks;
       if (s.traces != null) el.traces.value = s.traces;
-      if (s.date && !reload) dateText = cleanText(s.date);
+      if (s.date) dateText = cleanText(s.date);
       if (s.collapsed){
         document.body.classList.add('collapsed');
         el.hideBtn.setAttribute('aria-expanded', 'false');
@@ -902,6 +1011,14 @@
     el.lines.addEventListener(ev, render);
     el.font.addEventListener(ev, render);
     el.paper.addEventListener(ev, render);
+    el.weight.addEventListener(ev, render);
+    // the bold faces download on first use; re-measure once they have
+    [el.weight, el.font].forEach(function(sel){
+      sel.addEventListener(ev, function(){
+        var f = (FONTS[el.font.value] || FONTS.playpen).css;
+        document.fonts.load(el.weight.value + ' 200px ' + f).then(function(){ metricCache = {}; render(); });
+      });
+    });
     el.blanks.addEventListener(ev, render);
     el.traces.addEventListener(ev, render);
   });
@@ -923,7 +1040,7 @@
       return FONTS[k].css.split(',')[0].replace(/"/g, '');
     });
     Promise.all(families.map(function(f){
-      return document.fonts.load('400 200px "' + f + '"', 'abcdefghijklmnopqrstuvwxyzABC').catch(function(){});
+      return document.fonts.load(el.weight.value + ' 200px "' + f + '"', 'abcdefghijklmnopqrstuvwxyzABC').catch(function(){});
     }).concat(document.fonts.load('400 200px "Kalam"', '\u0915\u092E\u0932').catch(function(){}))).then(function(){
       return document.fonts.ready;
     }).then(function(){
