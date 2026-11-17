@@ -6,7 +6,7 @@
 <title>Four-Line Handwriting Practice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Kalam:wght@400;700&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Patrick+Hand&family=Playpen+Sans:wght@400;700&family=Schoolbell&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Tiro+Devanagari+Hindi&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Patrick+Hand&family=Playpen+Sans:wght@400;700&family=Schoolbell&display=swap" rel="stylesheet">
 <style>
   :root{
     --red:#e0473e;
@@ -445,8 +445,8 @@
      for school ruled paper and fill the zones properly (Edu SA measures asc:x:desc
      1.86:1:0.86); the reading and handwriting faces have shorter tails and will
      under-fill. The hint under the field reports the gap for whichever is picked. */
-  // Kalam covers Devanagari, which the Latin school faces lack
-  var FALLBACK = ', "Kalam", "Comic Sans MS", "Chalkboard SE", sans-serif';
+  // Tiro Devanagari Hindi covers Devanagari (classic book print, 400 only), which the Latin school faces lack
+  var FALLBACK = ', "Tiro Devanagari Hindi", "Comic Sans MS", "Chalkboard SE", sans-serif';
   var FONTS = {
     sa:         { css: '"Edu SA Beginner"' + FALLBACK },
     nsw:        { css: '"Edu NSW ACT Foundation"' + FALLBACK },
@@ -561,14 +561,18 @@
     var yA = lined ? y0 - 1.6 * k : 0, yX = lined ? y0 - 0.9 * k : y0 - u, yB = y0, yT = lined ? y0 + 0.4 * k : y0 + u;
     if (grid) svg.style.overflow = 'visible';
     var zones = [
-      { top: yA, bot: yX, s: (yX - yA) / (A - X), shift: yX + X * (yX - yA) / (A - X) - y0 },  // ascenders
+      { top: yA, bot: yX, s: (yX - yA) / (A - X), shift: yX + X * (yX - yA) / (A - X) - y0, each: true },  // ascenders
       { top: yX, bot: yB, s: (yB - yX) / X,  shift: yB - y0 },                     // x-height
       { top: yB, bot: yT, s: (yT - yB) / D,  shift: yB - y0 }                      // tails
     ];
     if (row.date) zones = [{ top: 0, bot: geo.gh, s: 1, shift: 0 }];   // no ruling behind it, so no stretch
     /* Hindi: the headline and stems sit on the top red line, unstretched;
        matras above it spill into the gap between groups */
-    if (row.deva){ zones = [{ top: -u, bot: y0 + 2 * u, s: 1, shift: yB - y0 }]; svg.style.overflow = 'visible'; }
+    if (row.deva){
+      // math boxes: smaller text, lifted so the headline still hangs from the box top
+      var lift = grid ? m.deva * fontSize - 2 * u : 0;
+      zones = [{ top: -u, bot: y0 + 2 * u, s: 1, shift: yB - y0 + lift }]; svg.style.overflow = 'visible';
+    }
     zones.forEach(function(z){
       var clip = svgNS('svg');                 // a nested svg clips to its own box
       clip.setAttribute('x', 0);
@@ -585,18 +589,36 @@
       t.setAttribute('transform',
         'translate(0 ' + (y0 + z.shift) + ') scale(1 ' + z.s + ') translate(0 ' + (-y0) + ')');
       t.setAttribute('class', 'body');
+      if (row.deva) t.style.fontWeight = 400;  // Tiro has no bold; skip the browser's fake one
       t.style.fill = row.trace ? 'var(--trace)' : 'var(--ink)';
       t.setAttribute('xml:space', 'preserve');
       var spans = row.date ? [{ text: row.text }]
         : grid ? gridSpans(row.text, u, m, fontSize).spans : chunks(row.text);
-      spans.filter(function(sp){ return !sp.sign; }).forEach(function(sp){
+      if (z.each){                             // ascenders: each tall letter stretched to the top line on its own
+        var flow = 0;                          // ponytail: x from canvas prefix widths, matches svg flow incl. kerning
+        spans.filter(function(sp){ return !sp.sign; }).forEach(function(sp){
+          var x0 = sp.x != null ? sp.x : TEXT_X + flow;
+          var chars = Array.from(sp.text);
+          chars.forEach(function(ch, i){
+            var a = m.ink(ch).asc * fontSize;
+            if (/\s/.test(ch)) return;
+            var s = a > X * 1.1 ? (yX - yA) / (a - X) : z.s, c = t.cloneNode(false);   // x-height letters: only overshoot shows here
+            c.setAttribute('x', x0 + fontSize * m.width(chars.slice(0, i).join('')));
+            c.setAttribute('transform',
+              'translate(0 ' + (yX + X * s) + ') scale(1 ' + s + ') translate(0 ' + (-y0) + ')');
+            c.textContent = ch;
+            clip.appendChild(c);
+          });
+          flow += fontSize * m.width(sp.text);
+        });
+      } else spans.filter(function(sp){ return !sp.sign; }).forEach(function(sp){
         var ts = svgNS('tspan');
         if (sp.x != null) ts.setAttribute('x', sp.x);
         if (sp.ul) ts.setAttribute('text-decoration', 'underline');
         ts.textContent = sp.text;
         t.appendChild(ts);
       });
-      clip.appendChild(t);
+      if (!z.each) clip.appendChild(t);
       svg.appendChild(clip);
     });
     if (grid){                                 // math signs: unstretched, centred in their box
@@ -604,7 +626,8 @@
         var ink = m.ink(sp.text), c = svgNS('text');
         c.setAttribute('class', 'sign');
         c.setAttribute('x', sp.x);
-        c.setAttribute('y', y0 - 0.8 * k + fontSize * (ink.asc - ink.desc) / 2);   // level with the digits' middle
+        var mid = row.deva ? y0 - u + lift / 2 : y0 - 0.8 * k;   // Hindi: halfway from headline to its baseline
+        c.setAttribute('y', mid + fontSize * (ink.asc - ink.desc) / 2);   // level with the digits' middle
         c.setAttribute('text-anchor', 'middle');
         c.setAttribute('font-size', fontSize);
         c.setAttribute('font-family', fontCss);
@@ -769,7 +792,8 @@
       if (!raw){ blocks.push([{ text: '', src: i, num: parsed.num }]); continue; }
       var deva = DEVA.test(raw);
       var fs = deva ? (2 * u) / m.deva : fontSize;      // Hindi: headline spans baseline to top line
-      if (geo.paper !== 'fourline') fs *= 0.8 * TEXT_K;   // ruled, math boxes: smaller letters, same shape
+      // ruled, math boxes: smaller letters, same shape; Hindi keeps its headline on the top line
+      if (geo.paper === 'grid' || (geo.paper === 'ruled' && !deva)) fs *= 0.8 * TEXT_K;
       var width = grid
         ? function(s){ return gridSpans(s, u, m, fs).end - gridX0(u); }
         : function(s){ return fs * m.width(plain(s)); };
@@ -1041,7 +1065,7 @@
     });
     Promise.all(families.map(function(f){
       return document.fonts.load(el.weight.value + ' 200px "' + f + '"', 'abcdefghijklmnopqrstuvwxyzABC').catch(function(){});
-    }).concat(document.fonts.load('400 200px "Kalam"', '\u0915\u092E\u0932').catch(function(){}))).then(function(){
+    }).concat(document.fonts.load('400 200px "Tiro Devanagari Hindi"', '\u0915\u092E\u0932').catch(function(){}))).then(function(){
       return document.fonts.ready;
     }).then(function(){
       metricCache = {};
