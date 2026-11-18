@@ -6,7 +6,7 @@
 <title>Four-Line Handwriting Practice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Tiro+Devanagari+Hindi&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Patrick+Hand&family=Playpen+Sans:wght@400;700&family=Schoolbell&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=ABeeZee&family=Andika:wght@400;700&family=Comic+Neue:wght@400;700&family=Tiro+Devanagari+Hindi&family=Edu+NSW+ACT+Foundation:wght@400..700&family=Edu+SA+Beginner:wght@400..700&family=Patrick+Hand&family=Playpen+Sans:wght@400;700&family=Schoolbell&family=Short+Stack&family=Mali:wght@400;700&family=Delius&family=Didact+Gothic&family=Comfortaa:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --red:#e0473e;
@@ -266,7 +266,7 @@
   .sheet.ruled .body::after{
     content:'';display:block;height:var(--lw-blue);background:var(--blue);
   }
-  .sheet text, .group .edit{font-weight:var(--weight, 400);word-spacing:0.15em}   /* keep WORD_SPACE in step */
+  .sheet text, .group .edit{font-weight:var(--weight, 400);word-spacing:0.15em;font-variant-ligatures:none}   /* keep WORD_SPACE in step; kids copy each letter, so no joined ft/fi */
   .group[data-src], .group[data-date]{cursor:text}
   .group .edit.num{
     right:auto;
@@ -455,8 +455,39 @@
     abeezee:    { css: '"ABeeZee"' + FALLBACK },
     comic:      { css: '"Comic Neue"' + FALLBACK },
     patrick:    { css: '"Patrick Hand"' + FALLBACK },
-    schoolbell: { css: '"Schoolbell"' + FALLBACK }
+    schoolbell: { css: '"Schoolbell"' + FALLBACK },
+    // four-line: neat kid print, straight-armed y and hooked g like school copybooks
+    mali:       { css: '"Mali"' + FALLBACK },
+    shortstack: { css: '"Short Stack"' + FALLBACK },
+    delius:     { css: '"Delius"' + FALLBACK },
+    didact:     { css: '"Didact Gothic"' + FALLBACK },   // drawn for children learning to write: ball-and-stick a, g, y
+    comfortaa:  { css: '"Comfortaa"' + FALLBACK }
   };
+
+  /* four-line gets the kid-handwriting faces; ruled and math boxes keep the original list */
+  var FONT_LISTS = {
+    fourline: '<option value="didact" selected>Didact Gothic (school print)</option>' +
+              '<option value="abeezee">ABeeZee (early reader)</option>' +
+              '<option value="comfortaa">Comfortaa (round)</option>' +
+              '<option value="andika">Andika</option>' +
+              '<option value="comic">Comic Neue</option>' +
+              '<option value="mali">Mali</option>' +
+              '<option value="shortstack">Short Stack</option>' +
+              '<option value="patrick">Patrick Hand</option>' +
+              '<option value="delius">Delius</option>'
+  };
+  FONT_LISTS.other = document.getElementById('font').innerHTML;
+  var fontPick = {};   // last font chosen per list, so switching paper back restores it
+  function fontList(want){
+    var key = el.paper.value === 'fourline' ? 'fourline' : 'other';
+    if (el.font.dataset.list !== key){
+      el.font.innerHTML = FONT_LISTS[key];
+      el.font.dataset.list = key;
+      want = want || fontPick[key];
+    }
+    if (want && el.font.querySelector('option[value="' + want + '"]')) el.font.value = want;
+    fontPick[key] = el.font.value;
+  }
 
   var el = {
     txt:      document.getElementById('txt'),
@@ -478,12 +509,12 @@
   /* ---- font metrics, measured rather than guessed ---- */
 
   var canvas = document.createElement('canvas').getContext('2d');
-  var metricCache = {};
+  var metricCache = {}, slopeCanvas;
 
   function metrics(fontCss){
     var key = el.weight.value + ' ' + fontCss;   // bold runs wider, so it wraps sooner
     if (metricCache[key]) return metricCache[key];
-    var S = 200;
+    var S = 200, stems = {};   // reset with metricCache once the webfonts land
     canvas.font = key.replace(' ', ' ' + S + 'px ');
     var m = {
       x:    canvas.measureText('x').actualBoundingBoxAscent / S,
@@ -495,6 +526,47 @@
         canvas.font = key.replace(' ', ' ' + S + 'px ');
         var t = canvas.measureText(s);
         return { asc: t.actualBoundingBoxAscent / S, desc: t.actualBoundingBoxDescent / S };
+      },
+      /* The straight stroke between a line and the tip (g's stem under its bowl,
+         f's stem under its hook), found by scanning the glyph row by row out from
+         the baseline (tails) or x-height line (ascenders). In em: t0..t1 measured
+         from the line, slope as x per unit of distance. 'gap' when the ink breaks
+         (the dot on i, j), null when no clean stem. */
+      stem: function(ch, up){
+        var id = (up ? '^' : 'v') + ch;
+        if (id in stems) return stems[id];
+        var c = slopeCanvas || (slopeCanvas = document.createElement('canvas'));
+        c.width = c.height = 2 * S;
+        var g = c.getContext('2d', { willReadFrequently: true });
+        g.font = key.replace(' ', ' ' + S + 'px ');
+        g.fillText(ch, S / 2, S);
+        var tm = g.measureText(ch), px = g.getImageData(0, 0, 2 * S, 2 * S).data;
+        var from = up ? S - m.x * S : S, len = Math.floor(up ? tm.actualBoundingBoxAscent - m.x * S : tm.actualBoundingBoxDescent);
+        var rows = [];
+        for (var k = 0; k < len; k++){
+          var r = Math.round(from + (up ? -k : k)), runs = [], on = false;
+          for (var x = 0; x < 2 * S; x++){
+            var ink = px[(r * 2 * S + x) * 4 + 3] > 128;
+            if (ink && !on) runs.push([x, x]);
+            if (ink) runs[runs.length - 1][1] = x;
+            on = ink;
+          }
+          rows.push(runs.length === 1 ? { c: (runs[0][0] + runs[0][1]) / 2, w: runs[0][1] - runs[0][0] } : runs.length ? 'many' : null);
+        }
+        for (k = 0; k < len * 0.6; k++) if (!rows[k]) return (stems[id] = 'gap');
+        var best = null;                       // longest run of rows with one stroke of steady width and lean
+        for (var a = 0; a < len; a++){
+          if (typeof rows[a] !== 'object' || !rows[a] || rows[a].w > 0.35 * m.x * S) continue;   // too wide: a hook's flat bottom, not a stem
+          var e = a;
+          while (e + 1 < len && rows[e + 1] && typeof rows[e + 1] === 'object' &&
+                 Math.abs(rows[e + 1].w - rows[a].w) <= 0.25 * rows[a].w + 1 &&
+                 (e - a < 4 || Math.abs(rows[e + 1].c - rows[a].c - (rows[e].c - rows[a].c) / (e - a) * (e + 1 - a)) < 1.5)) e++;
+          if (!best || e - a > best[1] - best[0]) best = [a, e];
+          a = e;
+        }
+        return (stems[id] = !best || best[1] - best[0] < 0.2 * len ? null
+          : { t0: best[0] / S, t1: best[1] / S,   // lean only counts for a straight stroke leaving the line (y), not one that starts after a bowl
+              slope: best[0] > 2 ? 0 : (rows[best[1]].c - rows[best[0]].c) / (best[1] - best[0]) * (up ? -1 : 1) });
       },
       width: function(s){
         canvas.font = key.replace(' ', ' ' + S + 'px ');
@@ -550,7 +622,7 @@
        each clipped to one zone and stretched vertically to fill it: x-height to
        the upper blue line, ascenders to the top red line, tails to the bottom one. */
     var m = metrics(fontCss), u = geo.u, y0 = 2 * u;   // baseline sits on the lower blue line
-    var X = m.x * fontSize, A = m.asc * fontSize, D = m.desc * fontSize;
+    var X = m.x * fontSize;
     /* where the tall-letter top, x-height top, baseline and tail bottom land;
        ruled and math boxes sit letters on the line, tall letters TEXT_K * 1.6u
        high (so a line holds 1.5x the words), tails hanging just below it.
@@ -560,67 +632,132 @@
     var k = TEXT_K * u;
     var yA = lined ? y0 - 1.6 * k : 0, yX = lined ? y0 - 0.9 * k : y0 - u, yB = y0, yT = lined ? y0 + 0.4 * k : y0 + u;
     if (grid) svg.style.overflow = 'visible';
-    var zones = [
-      { top: yA, bot: yX, s: (yX - yA) / (A - X), shift: yX + X * (yX - yA) / (A - X) - y0, each: true },  // ascenders
-      { top: yX, bot: yB, s: (yB - yX) / X,  shift: yB - y0 },                     // x-height
-      { top: yB, bot: yT, s: (yT - yB) / D,  shift: yB - y0 }                      // tails
-    ];
-    if (row.date) zones = [{ top: 0, bot: geo.gh, s: 1, shift: 0 }];   // no ruling behind it, so no stretch
-    /* Hindi: the headline and stems sit on the top red line, unstretched;
-       matras above it spill into the gap between groups */
-    if (row.deva){
-      // math boxes: smaller text, lifted so the headline still hangs from the box top
-      var lift = grid ? m.deva * fontSize - 2 * u : 0;
-      zones = [{ top: -u, bot: y0 + 2 * u, s: 1, shift: yB - y0 + lift }]; svg.style.overflow = 'visible';
-    }
-    zones.forEach(function(z){
-      var clip = svgNS('svg');                 // a nested svg clips to its own box
-      clip.setAttribute('x', 0);
-      clip.setAttribute('y', z.top);
-      clip.setAttribute('width', LINE_W);
-      clip.setAttribute('height', z.bot - z.top);
-      clip.setAttribute('viewBox', '0 ' + z.top + ' ' + LINE_W + ' ' + (z.bot - z.top));
-      clip.setAttribute('preserveAspectRatio', 'none');
+    var lift = row.deva && grid ? m.deva * fontSize - 2 * u : 0;   // math boxes: Hindi headline hangs from the box top
+    var spans = row.date ? [{ text: row.text }]
+      : grid ? gridSpans(row.text, u, m, fontSize).spans : chunks(row.text);
+    spans = spans.filter(function(sp){ return !sp.sign; });   // math signs are drawn below
+    var color = row.trace ? 'var(--trace)' : 'var(--ink)';
+
+    function text(x){
       var t = svgNS('text');
-      t.setAttribute('x', row.date ? DATE_X : TEXT_X);
+      t.setAttribute('x', x);
       t.setAttribute('y', y0);
       t.setAttribute('font-size', fontSize);
       t.setAttribute('font-family', fontCss);
-      t.setAttribute('transform',
-        'translate(0 ' + (y0 + z.shift) + ') scale(1 ' + z.s + ') translate(0 ' + (-y0) + ')');
       t.setAttribute('class', 'body');
-      if (row.deva) t.style.fontWeight = 400;  // Tiro has no bold; skip the browser's fake one
-      t.style.fill = row.trace ? 'var(--trace)' : 'var(--ink)';
+      t.style.fill = color;
+      return t;
+    }
+
+    if (row.date || row.deva){
+      /* date: no ruling behind it, so no stretch. Hindi: headline and stems sit
+         on the top red line, unstretched; matras spill into the gap above */
+      var t = text(row.date ? DATE_X : TEXT_X);
       t.setAttribute('xml:space', 'preserve');
-      var spans = row.date ? [{ text: row.text }]
-        : grid ? gridSpans(row.text, u, m, fontSize).spans : chunks(row.text);
-      if (z.each){                             // ascenders: each tall letter stretched to the top line on its own
-        var flow = 0;                          // ponytail: x from canvas prefix widths, matches svg flow incl. kerning
-        spans.filter(function(sp){ return !sp.sign; }).forEach(function(sp){
-          var x0 = sp.x != null ? sp.x : TEXT_X + flow;
-          var chars = Array.from(sp.text);
-          chars.forEach(function(ch, i){
-            var a = m.ink(ch).asc * fontSize;
-            if (/\s/.test(ch)) return;
-            var s = a > X * 1.1 ? (yX - yA) / (a - X) : z.s, c = t.cloneNode(false);   // x-height letters: only overshoot shows here
-            c.setAttribute('x', x0 + fontSize * m.width(chars.slice(0, i).join('')));
-            c.setAttribute('transform',
-              'translate(0 ' + (yX + X * s) + ') scale(1 ' + s + ') translate(0 ' + (-y0) + ')');
-            c.textContent = ch;
-            clip.appendChild(c);
-          });
-          flow += fontSize * m.width(sp.text);
-        });
-      } else spans.filter(function(sp){ return !sp.sign; }).forEach(function(sp){
+      if (row.deva){
+        t.style.fontWeight = 400;              // Tiro has no bold; skip the browser's fake one
+        t.setAttribute('transform', 'translate(0 ' + lift + ')');
+        svg.style.overflow = 'visible';
+      }
+      spans.forEach(function(sp){
         var ts = svgNS('tspan');
         if (sp.x != null) ts.setAttribute('x', sp.x);
         if (sp.ul) ts.setAttribute('text-decoration', 'underline');
         ts.textContent = sp.text;
         t.appendChild(ts);
       });
-      if (!z.each) clip.appendChild(t);
-      svg.appendChild(clip);
-    });
+      svg.appendChild(t);
+    } else {
+      /* Each letter is fitted to the ruling on its own. Capitals, digits and
+         x-height letters get one scale, so their curves stay clean. Lowercase
+         ascenders and tails need more height than the font gives them: only the
+         half of the stroke next to the line is stretched (straight stems there),
+         the tip with its hook moves out unstretched, and a slanted tail (y) is
+         skewed back so it stays one straight line. */
+      var sX = (yB - yX) / X, big = 4 * u, flow = 0;
+      var place = function(t, Yb, tb, sc, q, dx){  // the point tb below the baseline lands at Yb; below it, sc per unit, x leans q per unit
+        var o = y0 + tb;
+        q = q || 0; dx = dx || 0;
+        t.setAttribute('transform', 'matrix(1 0 ' + q + ' ' + sc + ' ' + (dx - q * o) + ' ' + (Yb - sc * o) + ')');
+      };
+      var eps = 0.02 * u;                          // bands overlap a hair so no seam shows where they meet
+      var band = function(ch, x, top, bot, Yb, tb, sc, q, dx){
+        var clip = svgNS('svg'), t = text(x);      // a nested svg clips to its own box
+        top -= eps; bot += eps;
+        clip.setAttribute('x', 0);
+        clip.setAttribute('y', top);
+        clip.setAttribute('width', LINE_W);
+        clip.setAttribute('height', bot - top);
+        clip.setAttribute('viewBox', '0 ' + top + ' ' + LINE_W + ' ' + (bot - top));
+        clip.setAttribute('preserveAspectRatio', 'none');
+        place(t, Yb, tb, sc, q, dx);
+        t.textContent = ch;
+        clip.appendChild(t);
+        svg.appendChild(clip);
+      };
+      var letter = function(ch, x){
+        var ink = m.ink(ch), a = ink.asc * fontSize, d = ink.desc * fontSize;
+        var tall = a > X * 1.1, tail = d > X * 0.15;
+        if (!/\p{Ll}/u.test(ch) || !(tall || tail)){
+          var t = text(x);
+          place(t, yB, 0, tall ? (yB - yA) / a : sX);   // tall ones reach the top line
+          t.textContent = ch;
+          svg.appendChild(t);
+          return;
+        }
+        var top = yA - big, bot = yT + big, xTop = top, xBot = bot;
+        if (tall){
+          var su = m.stem(ch, true), TA = yX - yA;
+          if (su === 'gap'){ /* i, j: the dot stays where the font put it */ }
+          else if (su){
+            var u0 = su.t0 * fontSize, u1 = su.t1 * fontSize;
+            var sA = (TA - (u0 + a - X - u1) * sX) / (u1 - u0);
+            if (sA > sX){
+              xTop = yX - u0 * sX;
+              var cutA = xTop - (u1 - u0) * sA;
+              band(ch, x, cutA, xTop, xTop, -(X + u0), sA);   // stem, stretched
+              band(ch, x, top, cutA, yA, -a, sX);             // tip, unstretched, on the top line
+            } else su = null;
+          }
+          if (su === null){ xTop = yX; band(ch, x, top, yX, yX, -X, TA / (a - X)); }
+        }
+        if (tail){
+          var sd = m.stem(ch, false), TD = yT - yB;
+          if (sd && sd !== 'gap'){
+            var d0 = sd.t0 * fontSize, d1 = sd.t1 * fontSize;
+            var sD = (TD - (d0 + d - d1) * sX) / (d1 - d0);
+            if (sD > sX){
+              var q = sd.slope * (sD / sX - 1);             // a slanted tail (y) is skewed back into one straight line
+              xBot = yB + d0 * sX;
+              var cutD = xBot + (d1 - d0) * sD;
+              band(ch, x, xBot, cutD, xBot, d0, sD, q);       // stem, stretched
+              band(ch, x, cutD, bot, yT, d, sX, 0, q * (d1 - d0));   // hook, unstretched, on the bottom line
+            } else sd = null;
+          } else sd = null;
+          if (sd === null){ xBot = yB; band(ch, x, yB, bot, yB, 0, TD / d); }
+        }
+        band(ch, x, xTop, xBot, yB, 0, sX);                   // body, at x-height scale
+      };
+      spans.forEach(function(sp){
+        var x0 = sp.x != null ? sp.x : TEXT_X + flow, chars = Array.from(sp.text);
+        // ponytail: x from canvas prefix widths, matches svg flow incl. kerning
+        chars.forEach(function(ch, i){
+          if (!/\s/.test(ch)) letter(ch, x0 + fontSize * m.width(chars.slice(0, i).join('')));
+        });
+        var w = fontSize * m.width(sp.text);
+        if (sp.ul){
+          var ln = svgNS('line'), yU = yB + 0.3 * (yT - yB);
+          ln.setAttribute('x1', x0);
+          ln.setAttribute('x2', x0 + w);
+          ln.setAttribute('y1', yU);
+          ln.setAttribute('y2', yU);
+          ln.setAttribute('stroke-width', 0.08 * (yB - yX));
+          ln.style.stroke = color;
+          svg.appendChild(ln);
+        }
+        flow += w;
+      });
+    }
     if (grid){                                 // math signs: unstretched, centred in their box
       gridSpans(row.text, u, m, fontSize).spans.filter(function(sp){ return sp.sign; }).forEach(function(sp){
         var ink = m.ink(sp.text), c = svgNS('text');
@@ -764,6 +901,7 @@
   }
 
   function render(){
+    fontList();
     /* pick the band so exactly N groups fill the page: the last one needs
        only its own three units, every other one a full pitch */
     var avail = PAGE_H - TOP_PAD - BODY_GAP - BOTTOM_PAD;
@@ -1013,8 +1151,8 @@
       var s = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (!s) return;
       if (s.txt != null) el.txt.value = cleanText(s.txt);
-      if (s.font && FONTS[s.font]) el.font.value = s.font;
       if (s.paper && el.paper.querySelector('option[value="' + s.paper + '"]')) el.paper.value = s.paper;
+      fontList(s.font);
       if (s.weight === '700') el.weight.value = '700';
       if (s.lines) el.lines.value = s.lines;
       if (s.blanks != null) el.blanks.value = s.blanks;
